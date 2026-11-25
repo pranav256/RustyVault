@@ -103,7 +103,7 @@ pub fn encrypt(key: &DerivedKey, plaintext: &[u8]) -> Result<EncryptedEnvelope, 
 
 /// Decrypt ciphertext with derived key using AES-256-GCM
 pub fn decrypt(key: &DerivedKey, envelope: &EncryptedEnvelope) -> Result<Vec<u8>, CryptoError> {
-    if envelope.nonce.len() != NONCE_LEN {
+    if envelope.version != 1 || envelope.nonce.len() != NONCE_LEN {
         return Err(CryptoError::InvalidPayload);
     }
 
@@ -132,6 +132,15 @@ mod tests {
 
         let decrypted = decrypt(&key, &envelope).expect("Decryption should succeed");
         assert_eq!(decrypted, secret_data);
+        let mut altered = envelope.clone();
+        altered.ciphertext[0] ^= 1;
+        assert!(decrypt(&key, &altered).is_err());
+        altered = envelope.clone();
+        altered.version = 2;
+        assert!(matches!(
+            decrypt(&key, &altered),
+            Err(CryptoError::InvalidPayload)
+        ));
     }
 
     #[test]

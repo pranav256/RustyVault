@@ -1,0 +1,15 @@
+:root { color-scheme: dark; font: 14px/1.5 system-ui, sans-serif; color: #f1e9dc; background: #181715; }
+* { box-sizing: border-box; }
+body { width: 360px; margin: 0; padding: 24px; }
+header { border-bottom: 1px solid #4e463c; margin-bottom: 16px; padding-bottom: 16px; }
+h1 { font: 28px/1.2 Georgia, serif; margin: 0 0 8px; }
+p { margin: 0 0 16px; overflow-wrap: anywhere; }
+#site, .hint { color: #b7aa99; }
+.hint { font-size: 12px; margin-top: 16px; }
+button { width: 100%; min-height: 44px; border: 1px solid #b7aa99; border-radius: 10px; background: #201e1b; color: #f1e9dc; padding: 10px 12px; margin-bottom: 8px; font: inherit; text-align: left; cursor: pointer; overflow-wrap: anywhere; }
+button:hover { background: #3a2b21; }
+button:focus-visible { outline: 2px solid #e0a672; outline-offset: 2px; }
+button:disabled { opacity: .6; cursor: default; }
+#save, #enable { background: #e0a672; color: #201914; border-color: #e0a672; }
+button small { display: block; color: #b7aa99; }
+[hidden] { display: none !important; }

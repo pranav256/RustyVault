@@ -1,6 +1,9 @@
 /target
 **/*.rs.bk
 *.tmp
-vault.enc
+*.enc
 emails.txt
-Cargo.lock
+*.enc.bak
+*.enc.lock
+
+/browser-extension/native-hosts/

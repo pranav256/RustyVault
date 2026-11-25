@@ -46,14 +46,15 @@ jobs:
         shell: bash
         run: |
           cp target/${{ matrix.target }}/release/${{ matrix.binary }} .
-          7z a ${{ matrix.archive }} ${{ matrix.binary }} README.md LICENSE
+          cp target/${{ matrix.target }}/release/rustyvault-bridge.exe .
+          7z a ${{ matrix.archive }} ${{ matrix.binary }} rustyvault-bridge.exe README.md LICENSE DESIGN.md assets docs browser-extension
 
       - name: Package Unix Archive
         if: matrix.os != 'windows-latest'
         shell: bash
         run: |
           cp target/${{ matrix.target }}/release/${{ matrix.binary }} .
-          tar -czvf ${{ matrix.archive }} ${{ matrix.binary }} README.md LICENSE
+          tar -czvf ${{ matrix.archive }} ${{ matrix.binary }} README.md LICENSE DESIGN.md assets docs
 
       - name: Publish Release Assets
         uses: softprops/action-gh-release@v2

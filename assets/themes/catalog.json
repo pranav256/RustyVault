@@ -1,0 +1,1066 @@
+[
+  {
+    "id": "agentic",
+    "name": "Agentic",
+    "category": "Themed & Unique",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/agentic"
+  },
+  {
+    "id": "airbnb",
+    "name": "Airbnb",
+    "category": "E-Commerce & Retail",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/airbnb"
+  },
+  {
+    "id": "airtable",
+    "name": "Airtable",
+    "category": "Design & Creative",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/airtable"
+  },
+  {
+    "id": "ant",
+    "name": "Ant",
+    "category": "Professional & Corporate",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/ant"
+  },
+  {
+    "id": "apple",
+    "name": "Apple",
+    "category": "Media & Consumer",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/apple"
+  },
+  {
+    "id": "application",
+    "name": "Application",
+    "category": "Professional & Corporate",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/application"
+  },
+  {
+    "id": "arc",
+    "name": "Arc Browser",
+    "category": "Productivity & SaaS",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/arc"
+  },
+  {
+    "id": "artistic",
+    "name": "Artistic",
+    "category": "Creative & Artistic",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/artistic"
+  },
+  {
+    "id": "atelier-zero",
+    "name": "Atelier Zero",
+    "category": "Editorial · Studio",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/atelier-zero"
+  },
+  {
+    "id": "bento",
+    "name": "Bento",
+    "category": "Layout & Structure",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/bento"
+  },
+  {
+    "id": "binance",
+    "name": "Binance.US",
+    "category": "Fintech & Crypto",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/binance"
+  },
+  {
+    "id": "bmw",
+    "name": "BMW",
+    "category": "Automotive",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/bmw"
+  },
+  {
+    "id": "bmw-m",
+    "name": "BMW M",
+    "category": "Automotive",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/bmw-m"
+  },
+  {
+    "id": "bold",
+    "name": "Bold",
+    "category": "Bold & Expressive",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/bold"
+  },
+  {
+    "id": "brutalism",
+    "name": "Brutalism",
+    "category": "Bold & Expressive",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/brutalism"
+  },
+  {
+    "id": "bugatti",
+    "name": "Bugatti",
+    "category": "Automotive",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/bugatti"
+  },
+  {
+    "id": "cafe",
+    "name": "Cafe",
+    "category": "Creative & Artistic",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/cafe"
+  },
+  {
+    "id": "cal",
+    "name": "Cal.com",
+    "category": "Productivity & SaaS",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/cal"
+  },
+  {
+    "id": "canva",
+    "name": "Canva",
+    "category": "Design & Creative",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/canva"
+  },
+  {
+    "id": "cisco",
+    "name": "Cisco",
+    "category": "Backend & Data",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/cisco"
+  },
+  {
+    "id": "claude",
+    "name": "Claude (Anthropic)",
+    "category": "AI & LLM",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/claude"
+  },
+  {
+    "id": "clay",
+    "name": "Clay",
+    "category": "Design & Creative",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/clay"
+  },
+  {
+    "id": "claymorphism",
+    "name": "Claymorphism",
+    "category": "Morphism & Effects",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/claymorphism"
+  },
+  {
+    "id": "clean",
+    "name": "Clean",
+    "category": "Modern & Minimal",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/clean"
+  },
+  {
+    "id": "clickhouse",
+    "name": "ClickHouse",
+    "category": "Backend & Data",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/clickhouse"
+  },
+  {
+    "id": "cloudflare-kumo",
+    "name": "Cloudflare Kumo UI",
+    "category": "Developer Tools",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/cloudflare-kumo"
+  },
+  {
+    "id": "cohere",
+    "name": "Cohere",
+    "category": "AI & LLM",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/cohere"
+  },
+  {
+    "id": "coinbase",
+    "name": "Coinbase",
+    "category": "Fintech & Crypto",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/coinbase"
+  },
+  {
+    "id": "colorful",
+    "name": "Colorful",
+    "category": "Bold & Expressive",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/colorful"
+  },
+  {
+    "id": "composio",
+    "name": "Composio",
+    "category": "Backend & Data",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/composio"
+  },
+  {
+    "id": "contemporary",
+    "name": "Contemporary",
+    "category": "Modern & Minimal",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/contemporary"
+  },
+  {
+    "id": "corporate",
+    "name": "Corporate",
+    "category": "Professional & Corporate",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/corporate"
+  },
+  {
+    "id": "cosmic",
+    "name": "Cosmic",
+    "category": "Creative & Artistic",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/cosmic"
+  },
+  {
+    "id": "creative",
+    "name": "Creative",
+    "category": "Creative & Artistic",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/creative"
+  },
+  {
+    "id": "cursor",
+    "name": "Cursor",
+    "category": "Developer Tools",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/cursor"
+  },
+  {
+    "id": "dashboard",
+    "name": "Dashboard",
+    "category": "Professional & Corporate",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/dashboard"
+  },
+  {
+    "id": "default",
+    "name": "Neutral Modern",
+    "category": "Starter",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/default"
+  },
+  {
+    "id": "discord",
+    "name": "Discord",
+    "category": "Productivity & SaaS",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/discord"
+  },
+  {
+    "id": "dithered",
+    "name": "Dithered",
+    "category": "Retro & Nostalgic",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/dithered"
+  },
+  {
+    "id": "doodle",
+    "name": "Doodle",
+    "category": "Creative & Artistic",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/doodle"
+  },
+  {
+    "id": "dramatic",
+    "name": "Dramatic",
+    "category": "Bold & Expressive",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/dramatic"
+  },
+  {
+    "id": "duolingo",
+    "name": "Duolingo",
+    "category": "Productivity & SaaS",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/duolingo"
+  },
+  {
+    "id": "editorial",
+    "name": "Editorial",
+    "category": "Creative & Artistic",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/editorial"
+  },
+  {
+    "id": "elegant",
+    "name": "Elegant",
+    "category": "Professional & Corporate",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/elegant"
+  },
+  {
+    "id": "elevenlabs",
+    "name": "ElevenLabs",
+    "category": "AI & LLM",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/elevenlabs"
+  },
+  {
+    "id": "energetic",
+    "name": "Energetic",
+    "category": "Bold & Expressive",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/energetic"
+  },
+  {
+    "id": "enterprise",
+    "name": "Enterprise",
+    "category": "Professional & Corporate",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/enterprise"
+  },
+  {
+    "id": "expo",
+    "name": "Expo",
+    "category": "Developer Tools",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/expo"
+  },
+  {
+    "id": "expressive",
+    "name": "Expressive",
+    "category": "Bold & Expressive",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/expressive"
+  },
+  {
+    "id": "fantasy",
+    "name": "Fantasy",
+    "category": "Creative & Artistic",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/fantasy"
+  },
+  {
+    "id": "ferrari",
+    "name": "Ferrari",
+    "category": "Automotive",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/ferrari"
+  },
+  {
+    "id": "figma",
+    "name": "Figma",
+    "category": "Design & Creative",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/figma"
+  },
+  {
+    "id": "flat",
+    "name": "Flat",
+    "category": "Modern & Minimal",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/flat"
+  },
+  {
+    "id": "framer",
+    "name": "Framer",
+    "category": "Design & Creative",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/framer"
+  },
+  {
+    "id": "friendly",
+    "name": "Friendly",
+    "category": "Creative & Artistic",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/friendly"
+  },
+  {
+    "id": "futuristic",
+    "name": "Futuristic",
+    "category": "Themed & Unique",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/futuristic"
+  },
+  {
+    "id": "github",
+    "name": "GitHub",
+    "category": "Developer Tools",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/github"
+  },
+  {
+    "id": "glassmorphism",
+    "name": "Glassmorphism",
+    "category": "Morphism & Effects",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/glassmorphism"
+  },
+  {
+    "id": "gradient",
+    "name": "Gradient",
+    "category": "Morphism & Effects",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/gradient"
+  },
+  {
+    "id": "hashicorp",
+    "name": "HashiCorp",
+    "category": "Backend & Data",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/hashicorp"
+  },
+  {
+    "id": "hud",
+    "name": "HUD Design System",
+    "category": "Themed & Unique",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/hud"
+  },
+  {
+    "id": "huggingface",
+    "name": "Hugging Face",
+    "category": "AI & LLM",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/huggingface"
+  },
+  {
+    "id": "ibm",
+    "name": "IBM",
+    "category": "Media & Consumer",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/ibm"
+  },
+  {
+    "id": "intercom",
+    "name": "Intercom",
+    "category": "Productivity & SaaS",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/intercom"
+  },
+  {
+    "id": "kami",
+    "name": "kami (紙 / 纸)",
+    "category": "Editorial & Print",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/kami"
+  },
+  {
+    "id": "kraken",
+    "name": "Kraken",
+    "category": "Fintech & Crypto",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/kraken"
+  },
+  {
+    "id": "lamborghini",
+    "name": "Lamborghini",
+    "category": "Automotive",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/lamborghini"
+  },
+  {
+    "id": "levels",
+    "name": "Levels",
+    "category": "Layout & Structure",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/levels"
+  },
+  {
+    "id": "linear-app",
+    "name": "Linear",
+    "category": "Productivity & SaaS",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/linear-app"
+  },
+  {
+    "id": "lingo",
+    "name": "Lingo",
+    "category": "Creative & Artistic",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/lingo"
+  },
+  {
+    "id": "loom",
+    "name": "Loom Design System",
+    "category": "Themed & Unique",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/loom"
+  },
+  {
+    "id": "lovable",
+    "name": "Lovable",
+    "category": "Developer Tools",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/lovable"
+  },
+  {
+    "id": "luxury",
+    "name": "Luxury",
+    "category": "Professional & Corporate",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/luxury"
+  },
+  {
+    "id": "mastercard",
+    "name": "Mastercard",
+    "category": "Fintech & Crypto",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/mastercard"
+  },
+  {
+    "id": "material",
+    "name": "Material",
+    "category": "Professional & Corporate",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/material"
+  },
+  {
+    "id": "meta",
+    "name": "Meta (Store)",
+    "category": "E-Commerce & Retail",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/meta"
+  },
+  {
+    "id": "minimal",
+    "name": "Minimal",
+    "category": "Modern & Minimal",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/minimal"
+  },
+  {
+    "id": "minimax",
+    "name": "MiniMax",
+    "category": "AI & LLM",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/minimax"
+  },
+  {
+    "id": "mintlify",
+    "name": "Mintlify",
+    "category": "Productivity & SaaS",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/mintlify"
+  },
+  {
+    "id": "miro",
+    "name": "Miro",
+    "category": "Design & Creative",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/miro"
+  },
+  {
+    "id": "mission-control",
+    "name": "Mission Control Design System",
+    "category": "Developer Tools",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/mission-control"
+  },
+  {
+    "id": "mistral-ai",
+    "name": "Mistral AI",
+    "category": "AI & LLM",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/mistral-ai"
+  },
+  {
+    "id": "modern",
+    "name": "Modern",
+    "category": "Modern & Minimal",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/modern"
+  },
+  {
+    "id": "mongodb",
+    "name": "MongoDB",
+    "category": "Backend & Data",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/mongodb"
+  },
+  {
+    "id": "mono",
+    "name": "Mono",
+    "category": "Modern & Minimal",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/mono"
+  },
+  {
+    "id": "neobrutalism",
+    "name": "Neobrutalism",
+    "category": "Bold & Expressive",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/neobrutalism"
+  },
+  {
+    "id": "neon",
+    "name": "Neon",
+    "category": "Morphism & Effects",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/neon"
+  },
+  {
+    "id": "neumorphism",
+    "name": "Neumorphism",
+    "category": "Morphism & Effects",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/neumorphism"
+  },
+  {
+    "id": "nike",
+    "name": "Nike",
+    "category": "E-Commerce & Retail",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/nike"
+  },
+  {
+    "id": "notion",
+    "name": "Notion",
+    "category": "Productivity & SaaS",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/notion"
+  },
+  {
+    "id": "nvidia",
+    "name": "NVIDIA",
+    "category": "Media & Consumer",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/nvidia"
+  },
+  {
+    "id": "ollama",
+    "name": "Ollama",
+    "category": "AI & LLM",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/ollama"
+  },
+  {
+    "id": "openai",
+    "name": "OpenAI",
+    "category": "AI & LLM",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/openai"
+  },
+  {
+    "id": "opencode-ai",
+    "name": "OpenCode",
+    "category": "AI & LLM",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/opencode-ai"
+  },
+  {
+    "id": "pacman",
+    "name": "Pacman",
+    "category": "Themed & Unique",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/pacman"
+  },
+  {
+    "id": "paper",
+    "name": "Paper",
+    "category": "Retro & Nostalgic",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/paper"
+  },
+  {
+    "id": "perplexity",
+    "name": "Perplexity AI",
+    "category": "AI & LLM",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/perplexity"
+  },
+  {
+    "id": "perspective",
+    "name": "Perspective",
+    "category": "Layout & Structure",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/perspective"
+  },
+  {
+    "id": "pinterest",
+    "name": "Pinterest",
+    "category": "Media & Consumer",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/pinterest"
+  },
+  {
+    "id": "playstation",
+    "name": "PlayStation",
+    "category": "Media & Consumer",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/playstation"
+  },
+  {
+    "id": "posthog",
+    "name": "PostHog",
+    "category": "Backend & Data",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/posthog"
+  },
+  {
+    "id": "premium",
+    "name": "Premium",
+    "category": "Professional & Corporate",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/premium"
+  },
+  {
+    "id": "professional",
+    "name": "Professional",
+    "category": "Professional & Corporate",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/professional"
+  },
+  {
+    "id": "publication",
+    "name": "Publication",
+    "category": "Creative & Artistic",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/publication"
+  },
+  {
+    "id": "raycast",
+    "name": "Raycast",
+    "category": "Developer Tools",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/raycast"
+  },
+  {
+    "id": "refined",
+    "name": "Refined",
+    "category": "Modern & Minimal",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/refined"
+  },
+  {
+    "id": "renault",
+    "name": "Renault",
+    "category": "Automotive",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/renault"
+  },
+  {
+    "id": "replicate",
+    "name": "Replicate",
+    "category": "AI & LLM",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/replicate"
+  },
+  {
+    "id": "resend",
+    "name": "Resend",
+    "category": "Productivity & SaaS",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/resend"
+  },
+  {
+    "id": "retro",
+    "name": "Retro",
+    "category": "Retro & Nostalgic",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/retro"
+  },
+  {
+    "id": "revolut",
+    "name": "Revolut",
+    "category": "Fintech & Crypto",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/revolut"
+  },
+  {
+    "id": "runwayml",
+    "name": "Runway",
+    "category": "AI & LLM",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/runwayml"
+  },
+  {
+    "id": "sanity",
+    "name": "Sanity",
+    "category": "Backend & Data",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/sanity"
+  },
+  {
+    "id": "sentry",
+    "name": "Sentry",
+    "category": "Backend & Data",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/sentry"
+  },
+  {
+    "id": "shadcn",
+    "name": "Shadcn",
+    "category": "Modern & Minimal",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/shadcn"
+  },
+  {
+    "id": "shopify",
+    "name": "Shopify",
+    "category": "E-Commerce & Retail",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/shopify"
+  },
+  {
+    "id": "simple",
+    "name": "Simple",
+    "category": "Modern & Minimal",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/simple"
+  },
+  {
+    "id": "skeumorphism",
+    "name": "Skeumorphism",
+    "category": "Morphism & Effects",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/skeumorphism"
+  },
+  {
+    "id": "slack",
+    "name": "Slack",
+    "category": "Productivity & SaaS",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/slack"
+  },
+  {
+    "id": "sleek",
+    "name": "Sleek",
+    "category": "Modern & Minimal",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/sleek"
+  },
+  {
+    "id": "spacex",
+    "name": "SpaceX",
+    "category": "Media & Consumer",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/spacex"
+  },
+  {
+    "id": "spacious",
+    "name": "Spacious",
+    "category": "Layout & Structure",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/spacious"
+  },
+  {
+    "id": "spotify",
+    "name": "Spotify",
+    "category": "Media & Consumer",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/spotify"
+  },
+  {
+    "id": "starbucks",
+    "name": "Starbucks",
+    "category": "E-Commerce & Retail",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/starbucks"
+  },
+  {
+    "id": "storytelling",
+    "name": "Storytelling",
+    "category": "Creative & Artistic",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/storytelling"
+  },
+  {
+    "id": "stripe",
+    "name": "Stripe",
+    "category": "Fintech & Crypto",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/stripe"
+  },
+  {
+    "id": "supabase",
+    "name": "Supabase",
+    "category": "Backend & Data",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/supabase"
+  },
+  {
+    "id": "superhuman",
+    "name": "Superhuman",
+    "category": "Developer Tools",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/superhuman"
+  },
+  {
+    "id": "tesla",
+    "name": "Tesla",
+    "category": "Automotive",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/tesla"
+  },
+  {
+    "id": "tetris",
+    "name": "Tetris",
+    "category": "Themed & Unique",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/tetris"
+  },
+  {
+    "id": "theverge",
+    "name": "The Verge",
+    "category": "Media & Consumer",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/theverge"
+  },
+  {
+    "id": "together-ai",
+    "name": "Together AI",
+    "category": "AI & LLM",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/together-ai"
+  },
+  {
+    "id": "tom-modern",
+    "name": "Tom Modern Design",
+    "category": "Starter",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/tom-modern"
+  },
+  {
+    "id": "totality-festival",
+    "name": "Totality Festival",
+    "category": "Themed & Unique",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/totality-festival"
+  },
+  {
+    "id": "trading-terminal",
+    "name": "Trading Terminal Design System",
+    "category": "Themed & Unique",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/trading-terminal"
+  },
+  {
+    "id": "uber",
+    "name": "Uber",
+    "category": "Media & Consumer",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/uber"
+  },
+  {
+    "id": "urdu",
+    "name": "Urdu Modern (Indus Script System)",
+    "category": "Editorial / Personal / Publication",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/urdu"
+  },
+  {
+    "id": "vercel",
+    "name": "Vercel",
+    "category": "Developer Tools",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/vercel"
+  },
+  {
+    "id": "vibrant",
+    "name": "Vibrant",
+    "category": "Bold & Expressive",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/vibrant"
+  },
+  {
+    "id": "vintage",
+    "name": "Vintage",
+    "category": "Retro & Nostalgic",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/vintage"
+  },
+  {
+    "id": "vodafone",
+    "name": "Vodafone",
+    "category": "Media & Consumer",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/vodafone"
+  },
+  {
+    "id": "voltagent",
+    "name": "VoltAgent",
+    "category": "AI & LLM",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/voltagent"
+  },
+  {
+    "id": "warm-editorial",
+    "name": "Warm Editorial",
+    "category": "Starter",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/warm-editorial"
+  },
+  {
+    "id": "warp",
+    "name": "Warp",
+    "category": "Developer Tools",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/warp"
+  },
+  {
+    "id": "webex",
+    "name": "Webex",
+    "category": "Productivity & SaaS",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/webex"
+  },
+  {
+    "id": "webflow",
+    "name": "Webflow",
+    "category": "Design & Creative",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/webflow"
+  },
+  {
+    "id": "wechat",
+    "name": "WeChat Design System",
+    "category": "Social & Messaging",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/wechat"
+  },
+  {
+    "id": "wired",
+    "name": "WIRED",
+    "category": "Media & Consumer",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/wired"
+  },
+  {
+    "id": "wise",
+    "name": "Wise",
+    "category": "Fintech & Crypto",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/wise"
+  },
+  {
+    "id": "x-ai",
+    "name": "xAI",
+    "category": "AI & LLM",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/x-ai"
+  },
+  {
+    "id": "xiaohongshu",
+    "name": "Xiaohongshu",
+    "category": "Media & Consumer",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/xiaohongshu"
+  },
+  {
+    "id": "zapier",
+    "name": "Zapier",
+    "category": "Productivity & SaaS",
+    "license": "Apache-2.0",
+    "sourceUrl": "https://github.com/nexu-io/open-design/tree/b4ec310921f49ae512de1f0a1f3a4e7ce3d05f2f/design-systems/zapier"
+  }
+]

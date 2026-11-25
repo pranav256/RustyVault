@@ -1,0 +1,21 @@
+{
+  "library": "lucide",
+  "prefix": "lucide",
+  "source": "iconify",
+  "installedAt": "2026-11-15T08:40:06.649Z",
+  "icons": [
+    "key-round",
+    "layers",
+    "star",
+    "trash-2",
+    "shield-check",
+    "settings-2",
+    "folder",
+    "tag"
+  ],
+  "additionalSource": {
+    "repository": "lucide-icons/lucide",
+    "version": "0.468.0",
+    "adaptation": "white strokes for native tinting"
+  }
+}

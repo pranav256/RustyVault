@@ -130,7 +130,26 @@ pub fn calculate_entropy(password: &str) -> f64 {
         return 0.0;
     }
 
-    password.len() as f64 * (pool_size as f64).log2()
+    password.chars().count() as f64 * (pool_size as f64).log2()
+}
+
+pub fn generate_passphrase(words: usize, separator: &str, capitalize: bool) -> String {
+    let list: Vec<&str> = include_str!("../assets/eff-wordlist.txt")
+        .lines()
+        .filter_map(|line| line.split_whitespace().nth(1))
+        .collect();
+    let mut rng = rand::rngs::OsRng;
+    (0..words.clamp(4, 12))
+        .map(|_| {
+            let word = list.choose(&mut rng).expect("EFF wordlist is not empty");
+            if capitalize {
+                format!("{}{}", word[..1].to_uppercase(), &word[1..])
+            } else {
+                (*word).into()
+            }
+        })
+        .collect::<Vec<String>>()
+        .join(separator)
 }
 
 /// Categorize password strength

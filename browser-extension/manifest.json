@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "RustyVault",
+  "version": "0.1.0",
+  "description": "Save and fill website logins through your unlocked RustyVault desktop app.",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "rustyvault@pranav256.com",
+      "strict_min_version": "128.0"
+    }
+  },
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqzHHQW2KQGfI/+5Es84NyviiXDuMf1C9Puz/EQsxLz/LWuuSqhKDQO6d7O2cF2g6HqXrzNYQWX2MKaTtFQpXY2N6Fezz6+3z6qornqg1kmHY0/tlm5Qicyuhr6FeHModTZo4Ng/qShG+PnfvjpA2wZ6LulJDiz58Ol308a1qjNJkf9Ku1Ek6ViNRhEAp593m8ZkIyEQwRmLhlA4Relk7QcOfxM8y1HbBrfZ65f7CGAyqQSdUdYujp/cVNwEuRYIKY6fJhJxFCt5En8fsuC3RX0ydUROuS3PCKXVTChTi2JPCbaXBWi++UVapFBFDsBF25t8viG2mED+c0jbtK3zA2wIDAQAB",
+  "permissions": [
+    "nativeMessaging",
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "optional_host_permissions": [
+    "https://*/*"
+  ],
+  "background": {
+    "scripts": [
+      "background.js"
+    ],
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "RustyVault",
+    "default_popup": "popup.html"
+  },
+  "minimum_chrome_version": "121"
+}

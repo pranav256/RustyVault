@@ -2,6 +2,7 @@
 name = "rusty-vault"
 version = "0.1.0"
 edition = "2021"
+default-run = "rusty-vault"
 authors = ["Pranav <pranav256>"]
 description = "A modern, secure, and lightweight desktop password manager written in Rust"
 license = "MIT"
@@ -13,9 +14,15 @@ rand = "0.8"
 zeroize = { version = "1.8", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+url = "2.5"
 chrono = { version = "0.4", features = ["serde"] }
 eframe = "0.29"
 directories = "5.0"
-
-[dev-dependencies]
+arboard = "3.7"
+csv = "1.3"
+rfd = "0.15"
+totp-rs = { version = "5.7", features = ["otpauth"] }
+zxcvbn = "3.1"
 tempfile = "3.10"
+egui_extras = { version = "0.29", default-features = false, features = ["svg"] }
+image = { version = "0.25", default-features = false, features = ["png"] }
