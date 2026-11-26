@@ -12,6 +12,8 @@ jobs:
   publish-release:
     name: Build & Package (${{ matrix.target }})
     runs-on: ${{ matrix.os }}
+    env:
+      ARCHIVE_NAME: RustyVault-${{ github.ref_name }}-${{ matrix.archive_suffix }}
     strategy:
       fail-fast: false
       matrix:
@@ -19,17 +21,27 @@ jobs:
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             binary: rusty-vault.exe
-            archive: RustyVault-v0.1.0-Windows-x86_64.zip
+            archive_suffix: Windows-x86_64.zip
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             binary: rusty-vault
-            archive: RustyVault-v0.1.0-Linux-x86_64.tar.gz
+            archive_suffix: Linux-x86_64.tar.gz
           - os: macos-latest
             target: x86_64-apple-darwin
             binary: rusty-vault
-            archive: RustyVault-v0.1.0-macOS-x86_64.tar.gz
+            archive_suffix: macOS-x86_64.tar.gz
 
     steps:
+      - name: Validate release tag
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9A-Za-z._+-]*$ ]]; then
+            echo "Unsafe release tag" >&2
+            exit 1
+          fi
+
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -47,17 +59,17 @@ jobs:
         run: |
           cp target/${{ matrix.target }}/release/${{ matrix.binary }} .
           cp target/${{ matrix.target }}/release/rustyvault-bridge.exe .
-          7z a ${{ matrix.archive }} ${{ matrix.binary }} rustyvault-bridge.exe README.md LICENSE DESIGN.md assets docs browser-extension
+          7z a "$ARCHIVE_NAME" ${{ matrix.binary }} rustyvault-bridge.exe README.md LICENSE DESIGN.md assets docs browser-extension
 
       - name: Package Unix Archive
         if: matrix.os != 'windows-latest'
         shell: bash
         run: |
           cp target/${{ matrix.target }}/release/${{ matrix.binary }} .
-          tar -czvf ${{ matrix.archive }} ${{ matrix.binary }} README.md LICENSE DESIGN.md assets docs
+          tar -czvf "$ARCHIVE_NAME" ${{ matrix.binary }} README.md LICENSE DESIGN.md assets docs
 
       - name: Publish Release Assets
         uses: softprops/action-gh-release@v2
         with:
-          files: ${{ matrix.archive }}
+          files: ${{ env.ARCHIVE_NAME }}
           generate_release_notes: true
