@@ -69,8 +69,8 @@ requires the desktop app, an explicit site permission and the unlocked vault.
 
 ## Code signing policy
 
-SignPath enrollment is pending: the application form is prepared but has not been
-submitted. No SignPath account, certificate or API token is configured, and
+The SignPath Foundation application has been submitted and is awaiting review.
+No SignPath account, certificate or API token is configured, and
 **v0.1.1 remains unsigned**. We intend to use free code signing from
 [SignPath.io](https://signpath.io/) with a certificate from
 [SignPath Foundation](https://signpath.org/), subject to approval; this is not a
