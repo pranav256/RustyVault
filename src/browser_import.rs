@@ -1,5 +1,180 @@
-use std::io;
-use std::path::PathBuf;
+use std::collections::HashMap;
+use std::fs::{self, File};
+use std::io::{self, Read};
+use std::path::{Path, PathBuf};
+use std::time::SystemTime;
+
+pub fn brave_export_directory() -> io::Result<PathBuf> {
+    directories::UserDirs::new()
+        .and_then(|dirs| {
+            dirs.download_dir()
+                .filter(|directory| directory.is_dir())
+                .map(Path::to_path_buf)
+        })
+        .ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::NotFound,
+                "Your Downloads folder was not found. Choose the exported CSV manually.",
+            )
+        })
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct CsvStamp {
+    length: u64,
+    modified: SystemTime,
+    created: Option<SystemTime>,
+}
+
+impl CsvStamp {
+    fn from_metadata(metadata: &fs::Metadata) -> io::Result<Self> {
+        Ok(Self {
+            length: metadata.len(),
+            modified: metadata.modified()?,
+            created: metadata.created().ok(),
+        })
+    }
+}
+
+#[derive(Clone, Copy)]
+enum CsvState {
+    Ignored,
+    Pending,
+    Ready,
+}
+
+struct CsvObservation {
+    stamp: CsvStamp,
+    state: CsvState,
+}
+
+pub struct BraveExportWatch {
+    directory: PathBuf,
+    observed: HashMap<PathBuf, CsvObservation>,
+}
+
+impl BraveExportWatch {
+    pub fn new(directory: PathBuf) -> io::Result<Self> {
+        let observed = csv_metadata(&directory)?
+            .into_iter()
+            .map(|(path, stamp)| {
+                (
+                    path,
+                    CsvObservation {
+                        stamp,
+                        state: CsvState::Ignored,
+                    },
+                )
+            })
+            .collect();
+        Ok(Self {
+            directory,
+            observed,
+        })
+    }
+
+    /// Finds only new or changed exports, after matching metadata on two polls.
+    pub fn poll(&mut self) -> io::Result<Option<PathBuf>> {
+        let mut observed = HashMap::new();
+        let mut ready = Vec::new();
+        let mut pending = false;
+        for (path, stamp) in csv_metadata(&self.directory)? {
+            let state = match self.observed.get(&path) {
+                Some(previous) if previous.stamp == stamp => match previous.state {
+                    CsvState::Pending => {
+                        let mut file = match File::open(&path) {
+                            Ok(file) => file,
+                            Err(error) if error.kind() == io::ErrorKind::NotFound => continue,
+                            Err(error) => return Err(error),
+                        };
+                        let valid_header = has_brave_export_header(&mut file)?;
+                        if CsvStamp::from_metadata(&file.metadata()?)? != stamp {
+                            CsvState::Pending
+                        } else if valid_header {
+                            CsvState::Ready
+                        } else {
+                            CsvState::Ignored
+                        }
+                    }
+                    state => state,
+                },
+                _ => CsvState::Pending,
+            };
+            if matches!(state, CsvState::Ready) {
+                ready.push(path.clone());
+            }
+            pending |= matches!(state, CsvState::Pending);
+            observed.insert(path, CsvObservation { stamp, state });
+        }
+        self.observed = observed;
+        if ready.len() > 1 {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "Multiple password CSV exports appeared in the watched folder. Choose the intended CSV manually or leave only that new export in the folder.",
+            ));
+        }
+        if pending {
+            return Ok(None);
+        }
+        if let Some(path) = ready.pop() {
+            self.observed.get_mut(&path).unwrap().state = CsvState::Ignored;
+            Ok(Some(path))
+        } else {
+            Ok(None)
+        }
+    }
+}
+
+fn csv_metadata(directory: &Path) -> io::Result<HashMap<PathBuf, CsvStamp>> {
+    let mut snapshot = HashMap::new();
+    for entry in fs::read_dir(directory)? {
+        let entry = entry?;
+        let path = entry.path();
+        if !path
+            .extension()
+            .and_then(|extension| extension.to_str())
+            .is_some_and(|extension| extension.eq_ignore_ascii_case("csv"))
+            || !entry.file_type()?.is_file()
+        {
+            continue;
+        }
+        let metadata = match entry.metadata() {
+            Ok(metadata) => metadata,
+            Err(error) if error.kind() == io::ErrorKind::NotFound => continue,
+            Err(error) => return Err(error),
+        };
+        snapshot.insert(path, CsvStamp::from_metadata(&metadata)?);
+    }
+    Ok(snapshot)
+}
+
+fn has_brave_export_header(reader: impl Read) -> io::Result<bool> {
+    let mut header = Vec::new();
+    let mut complete = false;
+    // Read one byte at a time so buffering cannot consume any credential rows.
+    for byte in reader.take(1024).bytes() {
+        let byte = byte?;
+        if matches!(byte, b'\r' | b'\n') {
+            complete = true;
+            break;
+        }
+        header.push(byte);
+    }
+    if !complete {
+        return Ok(false);
+    }
+    let mut reader = csv::ReaderBuilder::new().from_reader(header.as_slice());
+    let headers = match reader.headers() {
+        Ok(headers) => headers,
+        Err(_) => return Ok(false),
+    };
+    Ok((headers.len() == 4 || headers.len() == 5)
+        && ["name", "url", "username", "password"]
+            .iter()
+            .enumerate()
+            .all(|(index, name)| headers.get(index) == Some(*name))
+        && (headers.len() == 4 || headers.get(4) == Some("note")))
+}
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum BrowserKind {
@@ -183,6 +358,92 @@ impl BrowserKind {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const EXPORT: &[u8] = b"name,url,username,password,note\r\nExample,https://example.test,synthetic-user,synthetic-password,\r\n";
+
+    #[test]
+    fn brave_export_watch_waits_for_two_stable_polls_and_returns_once() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut watch = BraveExportWatch::new(directory.path().to_path_buf()).unwrap();
+        let path = directory.path().join("Brave Passwords.csv");
+        fs::write(&path, EXPORT).unwrap();
+        assert!(watch.poll().unwrap().is_none());
+        assert_eq!(watch.poll().unwrap(), Some(path));
+        assert!(watch.poll().unwrap().is_none());
+    }
+
+    #[test]
+    fn brave_export_watch_ignores_unchanged_preexisting_exports() {
+        let directory = tempfile::tempdir().unwrap();
+        fs::write(directory.path().join("old.csv"), EXPORT).unwrap();
+        let mut watch = BraveExportWatch::new(directory.path().to_path_buf()).unwrap();
+        assert!(watch.poll().unwrap().is_none());
+        assert!(watch.poll().unwrap().is_none());
+    }
+
+    #[test]
+    fn brave_export_watch_supports_overwrite_and_restarts_stability_after_changes() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("Brave Passwords.csv");
+        fs::write(&path, EXPORT).unwrap();
+        let mut watch = BraveExportWatch::new(directory.path().to_path_buf()).unwrap();
+        fs::write(&path, b"name,url,").unwrap();
+        assert!(watch.poll().unwrap().is_none());
+        fs::write(&path, EXPORT).unwrap();
+        assert!(watch.poll().unwrap().is_none());
+        assert_eq!(watch.poll().unwrap(), Some(path));
+    }
+
+    #[test]
+    fn brave_export_watch_ignores_unrelated_files_and_subdirectories() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut watch = BraveExportWatch::new(directory.path().to_path_buf()).unwrap();
+        fs::write(
+            directory.path().join("budget.csv"),
+            b"name,total\nExample,5\n",
+        )
+        .unwrap();
+        fs::write(
+            directory.path().join("incomplete.csv"),
+            b"name,url,username,password",
+        )
+        .unwrap();
+        fs::write(directory.path().join("export.txt"), EXPORT).unwrap();
+        fs::create_dir(directory.path().join("nested")).unwrap();
+        fs::write(directory.path().join("nested/export.csv"), EXPORT).unwrap();
+        assert!(watch.poll().unwrap().is_none());
+        assert!(watch.poll().unwrap().is_none());
+        assert!(watch.poll().unwrap().is_none());
+    }
+
+    #[test]
+    fn brave_export_watch_rejects_ambiguous_exports_until_one_remains() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut watch = BraveExportWatch::new(directory.path().to_path_buf()).unwrap();
+        let first = directory.path().join("first.csv");
+        let second = directory.path().join("second.csv");
+        fs::write(&first, EXPORT).unwrap();
+        assert!(watch.poll().unwrap().is_none());
+        fs::write(&second, EXPORT).unwrap();
+        assert!(watch.poll().unwrap().is_none());
+        assert_eq!(watch.poll().unwrap_err().kind(), io::ErrorKind::InvalidData);
+        assert_eq!(watch.poll().unwrap_err().kind(), io::ErrorKind::InvalidData);
+        fs::remove_file(second).unwrap();
+        assert_eq!(watch.poll().unwrap(), Some(first));
+    }
+
+    #[test]
+    fn brave_export_header_reads_only_the_bounded_header() {
+        let mut reader = io::Cursor::new(EXPORT);
+        assert!(has_brave_export_header(&mut reader).unwrap());
+        assert_eq!(reader.position(), 32);
+        assert!(has_brave_export_header(b"name,url,username,password\n".as_slice()).unwrap());
+        assert!(!has_brave_export_header(vec![b'a'; 2048].as_slice()).unwrap());
+        assert!(
+            !has_brave_export_header(b"name,url,username,password,unexpected\n".as_slice())
+                .unwrap()
+        );
+    }
 
     #[test]
     fn browser_choices_default_to_brave_and_use_local_password_pages() {

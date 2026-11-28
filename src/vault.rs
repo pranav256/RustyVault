@@ -149,13 +149,52 @@ impl VaultEntry {
         if !self.url.is_empty()
             && !self.url.starts_with("https://")
             && !self.url.starts_with("http://")
+            && !valid_android_facet_uri(&self.url)
         {
             return Err(VaultError::InvalidData(
-                "Website must start with https:// or http://".into(),
+                "Website must use https:// or http://, or be a valid Android app identifier".into(),
             ));
         }
         Ok(())
     }
+}
+
+// Android facets are stored metadata, never website-opening or browser-fill targets.
+fn valid_android_facet_uri(value: &str) -> bool {
+    let Some(facet) = value.strip_prefix("android://") else {
+        return false;
+    };
+    let facet = facet.strip_suffix('/').unwrap_or(facet);
+    let Some((hash, package)) = facet.split_once('@') else {
+        return false;
+    };
+
+    // Chromium uses URL-safe base64, optionally padded, for the certificate hash.
+    let data = hash.trim_end_matches('=');
+    let padding = hash.len() - data.len();
+    if data.is_empty()
+        || padding > 2
+        || (padding != 0 && hash.len() % 4 != 0)
+        || !data
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
+    {
+        return false;
+    }
+    let last = data.as_bytes().last().unwrap();
+    let valid_padding_bits = match data.len() % 4 {
+        0 => true,
+        2 => b"AQgw".contains(last),
+        3 => b"AEIMQUYcgkosw048".contains(last),
+        _ => false,
+    };
+    valid_padding_bits
+        && package.contains('.')
+        && package.split('.').all(|segment| {
+            let mut bytes = segment.bytes();
+            bytes.next().is_some_and(|byte| byte.is_ascii_alphabetic())
+                && bytes.all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
+        })
 }
 
 impl Drop for VaultEntry {

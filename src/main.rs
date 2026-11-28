@@ -4,7 +4,7 @@ mod appearance;
 mod browser_import;
 
 use appearance::{Palette, CONTROL_RADIUS, WINDOW_RADIUS};
-use browser_import::BrowserKind;
+use browser_import::{BraveExportWatch, BrowserKind};
 use eframe::egui::{self, RichText, Vec2};
 use rusty_vault::{
     browser::{self, Request as BrowserRequest, Response as BrowserResponse},
@@ -310,6 +310,8 @@ struct App {
     browser_setup_only: bool,
     browser_setup_path: Option<PathBuf>,
     browser_import_pending: bool,
+    brave_import_watch: Option<(BraveExportWatch, PathBuf, Instant)>,
+    brave_import_next_poll: Instant,
     browser_last_seen: Option<Instant>,
 }
 
@@ -368,6 +370,8 @@ impl App {
             browser_setup_only: false,
             browser_setup_path: None,
             browser_import_pending: false,
+            brave_import_watch: None,
+            brave_import_next_poll: Instant::now(),
             browser_last_seen: None,
         };
         if demo {
@@ -520,7 +524,67 @@ impl App {
     fn open_browser_guide(&mut self, setup: bool) {
         self.browser_import_open = true;
         self.browser_setup_only = setup;
+        self.brave_import_watch = None;
         self.error = None;
+    }
+
+    fn stage_import(&mut self, entries: Vec<VaultEntry>, from_browser: bool) {
+        self.pending_import = Some(entries);
+        self.pending_import_indices = None;
+        self.browser_import_pending = from_browser;
+        self.browser_import_open = false;
+        self.brave_import_watch = None;
+        self.error = None;
+    }
+
+    fn start_brave_import(&mut self) {
+        if self.demo {
+            self.choose_csv(true);
+            return;
+        }
+        let result = browser_import::brave_export_directory().and_then(|directory| {
+            let watcher = BraveExportWatch::new(directory.clone())?;
+            BrowserKind::Brave.open_password_manager()?;
+            Ok((watcher, directory, Instant::now()))
+        });
+        match result {
+            Ok(watch) => {
+                self.brave_import_watch = Some(watch);
+                self.brave_import_next_poll = Instant::now();
+                self.error = None;
+                self.notice = "Waiting for your approved Brave export".into();
+            }
+            Err(error) => self.error = Some(error.to_string()),
+        }
+    }
+
+    fn poll_brave_import(&mut self) {
+        if self.brave_import_watch.is_none() || Instant::now() < self.brave_import_next_poll {
+            return;
+        }
+        self.brave_import_next_poll = Instant::now() + Duration::from_secs(1);
+        let Some((mut watcher, directory, started)) = self.brave_import_watch.take() else {
+            return;
+        };
+        if self.vault.is_none() || !self.browser_import_open {
+            return;
+        }
+        if started.elapsed() > Duration::from_secs(300) {
+            self.error =
+                Some("Import timed out. Start again, or choose an exported CSV file.".into());
+            return;
+        }
+        match watcher.poll() {
+            Ok(Some(path)) => match read_small_file(&path, 16 * 1024 * 1024)
+                .map_err(VaultError::from)
+                .and_then(|bytes| vault::read_csv(&Zeroizing::new(bytes)))
+            {
+                Ok(entries) => self.stage_import(entries, true),
+                Err(error) => self.error = Some(error.to_string()),
+            },
+            Ok(None) => self.brave_import_watch = Some((watcher, directory, started)),
+            Err(error) => self.error = Some(error.to_string()),
+        }
     }
     fn keyboard_shortcuts(&mut self, ctx: &egui::Context) {
         if ctx.input_mut(|i| i.consume_key(egui::Modifiers::CTRL, egui::Key::L)) {
@@ -563,13 +627,7 @@ impl App {
         };
         if let Some(result) = result {
             match result {
-                Ok(entries) => {
-                    self.pending_import = Some(entries);
-                    self.pending_import_indices = None;
-                    self.browser_import_pending = from_browser;
-                    self.browser_import_open = false;
-                    self.error = None;
-                }
+                Ok(entries) => self.stage_import(entries, from_browser),
                 Err(error) => self.error = Some(error.to_string()),
             }
         }
@@ -691,11 +749,26 @@ impl App {
                                     }
                                 }).response.labelled_by(label.id);
                             self.track("browser-kind", "Browser", "combobox", &response);
-                            if self.browser_kind != selected { self.browser_setup_path = None; }
+                            if self.browser_kind != selected { self.browser_setup_path = None; self.brave_import_watch = None; }
                         });
                         ui.add_space(8.0);
                         if self.browser_setup_only {
                             self.browser_setup_controls(ui);
+                        } else {
+                        if self.browser_kind == BrowserKind::Brave {
+                            ui.label(RichText::new("1. Start the import").strong());
+                            let start = ui.add_enabled(self.brave_import_watch.is_none(), primary(ui, "Open Brave and detect export"));
+                            self.track("brave-start-import", "Open Brave and detect export", "button", &start);
+                            if start.clicked() { self.start_brave_import(); }
+                            ui.label(RichText::new("2. Approve the export in Brave").strong());
+                            ui.label("In Brave's Export passwords section, choose Download file and complete any Windows authentication.");
+                            ui.label(RichText::new("3. Save to Downloads, then review here").strong());
+                            ui.label("RustyVault detects the new password export automatically. Keep this vault unlocked until the review appears.");
+                            if let Some((_, directory, _)) = &self.brave_import_watch {
+                                ui.label(RichText::new("Waiting for your Brave export...").strong());
+                                ui.label(directory.to_string_lossy().as_ref());
+                            }
+                            ui.label("Already exported, or saved somewhere else?");
                         } else {
                         ui.label(RichText::new("1. Open your browser's password manager").strong());
                         let open = ui.button(format!("Open {} password manager", self.browser_kind.label()));
@@ -705,7 +778,8 @@ impl App {
                         ui.label(self.browser_kind.export_instructions());
                         ui.label(RichText::new("Your browser may ask for your Windows password or device authentication.").small().color(colors.muted));
                         ui.label(RichText::new("3. Choose the exported file, then review it").strong());
-                        let choose = ui.add_sized([ui.available_width(), 40.0], primary(ui, "Choose exported CSV..."));
+                        }
+                        let choose = ui.add_sized([ui.available_width(), 40.0], egui::Button::new("Choose exported CSV..."));
                         self.track("browser-choose-csv", "Choose exported CSV", "button", &choose);
                         if choose.clicked() { self.choose_csv(true); }
                         ui.label(RichText::new("The CSV contains readable passwords. Delete it after importing, including copies in Downloads and the Recycle Bin.").small().color(colors.danger));
@@ -727,6 +801,7 @@ impl App {
             });
         if close {
             self.browser_import_open = false;
+            self.brave_import_watch = None;
         }
         if !self.browser_import_open && self.pending_import.is_none() {
             if let Some(id) = self.dialog_focus.take().flatten() {
@@ -795,6 +870,7 @@ impl App {
         self.browser_import_open = false;
         self.browser_setup_only = false;
         self.browser_import_pending = false;
+        self.brave_import_watch = None;
         self.browser_setup_path = None;
         ctx.memory_mut(|m| m.data.clear());
         self.clear_clipboard();
@@ -2555,7 +2631,12 @@ form_field(ui,"Current master password",&mut self.master,true);form_field(ui,"Ne
                 if self.browser_import_pending {
                     message.push_str(" Delete the exported plaintext CSV.");
                 }
-                if !self.commit(next, &message) {
+                if self.commit(next, &message) {
+                    self.view = View::All;
+                    self.query.clear();
+                    self.selected = new_indices.first().map(|&index| entries[index].id.clone());
+                    self.reveal = false;
+                } else {
                     self.pending_import = Some(entries);
                 }
             } else if !cancel {
@@ -2622,6 +2703,7 @@ impl eframe::App for App {
             }
             self.keyboard_shortcuts(ctx);
         }
+        self.poll_brave_import();
         self.browser_requests(ctx);
         egui::TopBottomPanel::bottom("status")
             .frame(
@@ -3373,10 +3455,14 @@ mod app_tests {
         changed.id = "synthetic-import-id".into();
         changed.password = "SYNTHETIC-CHANGED-PASSWORD".into();
         let before = app.vault.as_ref().unwrap().entries.len();
+        app.view = View::Favorites;
+        app.query = "filter hiding imported entries".into();
         app.pending_import = Some(vec![original.clone(), changed.clone(), changed.clone()]);
         click_fragment(&mut app, &ctx, "dialogs", "dialog-confirm");
         assert!(app.pending_import.is_none());
         assert_eq!(app.vault.as_ref().unwrap().entries.len(), before + 1);
+        assert!(app.view == View::All && app.query.is_empty());
+        assert_eq!(app.selected.as_deref(), Some("synthetic-import-id"));
         assert!(app
             .notice
             .contains("Imported: 1. Exact duplicates skipped: 2."));
@@ -3400,6 +3486,76 @@ mod app_tests {
     }
 
     #[test]
+    fn automatic_brave_export_stages_review_and_recovers_from_failed_save() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = egui::Context::default();
+        theme(&ctx, true);
+        let mut app = App::new(true, Some(dir.path().join("vault.enc")));
+        app.capture = Some("unused-demo-capture".into());
+        app.browser_import_open = true;
+        app.brave_import_watch = Some((
+            BraveExportWatch::new(dir.path().into()).unwrap(),
+            dir.path().into(),
+            Instant::now(),
+        ));
+        let path = dir.path().join("Brave Passwords.csv");
+        std::fs::write(&path, "name,url,username,password,note\nExample,https://example.test,demo,SYNTHETIC-DEMO-ONLY,Imported note\n").unwrap();
+        for _ in 0..3 {
+            app.brave_import_next_poll = Instant::now();
+            app.poll_brave_import();
+        }
+        assert!(app.brave_import_watch.is_none() && !app.browser_import_open);
+        assert_eq!(app.pending_import.as_ref().unwrap().len(), 1);
+        assert!(app.browser_import_pending);
+        let before = app.vault.as_ref().unwrap().entries.len();
+        app.demo = false;
+        click_fragment(&mut app, &ctx, "dialogs", "dialog-confirm");
+        assert!(app.pending_import.is_some());
+        assert_eq!(app.vault.as_ref().unwrap().entries.len(), before);
+        assert!(!dir.path().join("vault.enc").exists());
+        app.demo = true;
+        click_fragment(&mut app, &ctx, "dialogs", "dialog-confirm");
+        assert!(app.pending_import.is_none());
+        assert_eq!(app.vault.as_ref().unwrap().entries.len(), before + 1);
+        assert!(
+            path.is_file(),
+            "The source export must not be deleted automatically"
+        );
+    }
+
+    #[test]
+    fn automatic_brave_import_times_out_and_cancels_on_close_or_lock() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = egui::Context::default();
+        theme(&ctx, true);
+        let mut app = App::new(true, None);
+        app.capture = Some("unused-demo-capture".into());
+        for action in ["timeout", "close", "lock"] {
+            app.browser_import_open = true;
+            app.brave_import_next_poll = Instant::now();
+            app.brave_import_watch = Some((
+                BraveExportWatch::new(dir.path().into()).unwrap(),
+                dir.path().into(),
+                if action == "timeout" {
+                    Instant::now() - Duration::from_secs(301)
+                } else {
+                    Instant::now()
+                },
+            ));
+            match action {
+                "timeout" => {
+                    app.poll_brave_import();
+                    assert!(app.error.as_deref().unwrap().contains("timed out"));
+                }
+                "close" => click_fragment(&mut app, &ctx, "dialogs", "browser-close"),
+                _ => app.lock(&ctx),
+            }
+            assert!(app.brave_import_watch.is_none());
+            assert!(app.pending_import.is_none());
+        }
+    }
+
+    #[test]
     fn browser_import_demo_reviews_before_commit() {
         let ctx = egui::Context::default();
         theme(&ctx, true);
@@ -3408,7 +3564,7 @@ mod app_tests {
         let before = app.vault.as_ref().unwrap().entries.len();
         click_fragment(&mut app, &ctx, "actions", "import-browser");
         assert!(app.browser_import_open);
-        click_fragment(&mut app, &ctx, "dialogs", "browser-choose-csv");
+        click_fragment(&mut app, &ctx, "dialogs", "brave-start-import");
         assert!(!app.browser_import_open && app.browser_import_pending);
         assert_eq!(app.pending_import.as_ref().unwrap().len(), 1);
         assert_eq!(app.vault.as_ref().unwrap().entries.len(), before);

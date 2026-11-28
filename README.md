@@ -111,6 +111,8 @@ release artifacts and build metadata, not users' vault files or master passwords
 
 Use **Import from browser...** to bring in saved passwords from Brave, Chrome, Edge or Firefox. The guide opens the browser's password manager, explains CSV export and lets you review accounts before importing. Review shows new entries and exact duplicates that will be skipped; different passwords or details are kept separately. The CSV is unencrypted; delete it after importing.
 
+For Brave, select **Open Brave and detect export**, approve **Download file** in Brave and save the export to Downloads. RustyVault waits for the new password CSV and opens its review automatically, without a separate file-picker step. Keep the vault unlocked; closing the guide or locking the vault cancels detection. Detection stops after five minutes. Brave controls export and Windows authentication; RustyVault does not bypass app-bound encryption. The exported file is kept until you delete it.
+
 For future saves and fills, open **Settings → Set up browser extension...**. Follow the steps to prepare the connection, add the extension and allow it while the vault is unlocked. The connection status tells you when the extension has contacted the vault.
 
 There is no password recovery. Keep the master passphrase safe.

@@ -121,6 +121,121 @@ fn browser_csv_exports_preserve_credentials_notes_and_firefox_metadata() {
 }
 
 #[test]
+fn android_browser_csv_entries_remain_editable_without_changing_facet_metadata() {
+    let facet = format!("android://{}=@com.example.App_1/", "A".repeat(43));
+    let csv = format!(
+        "name,url,username,password,note\r\nDemo Android,{facet},synthetic-user,synthetic-secret,Before edit\r\n"
+    );
+    let mut entry = read_csv(csv.as_bytes()).unwrap().remove(0);
+    entry.notes = "Edited synthetic note".into();
+    entry.validate().unwrap();
+    assert_eq!(entry.url, facet);
+    assert_eq!(entry.username, "synthetic-user");
+    assert_eq!(entry.password, "synthetic-secret");
+    let exported = write_csv(&[entry.clone()]).unwrap();
+    let roundtrip = read_csv(&exported).unwrap();
+    assert_eq!(roundtrip[0].url, facet);
+    assert_eq!(roundtrip[0].notes, entry.notes);
+    assert!(rusty_vault::browser::origin(&entry.url).is_err());
+    let mut vault = Vault::new();
+    vault.add_entry(entry);
+    let response = rusty_vault::browser::read_login(
+        &vault,
+        &rusty_vault::browser::Request::List {
+            origin: "https://com.example.app".into(),
+        },
+    );
+    assert!(response.ok && response.logins.is_empty());
+}
+
+#[test]
+fn android_facet_validation_accepts_url_safe_base64_and_optional_trailing_slash() {
+    let mut entry = VaultEntry::new("Demo Android", "synthetic-user", "", "synthetic-secret");
+    for hash in [
+        "hash".into(),
+        "-_8".into(),
+        "A".repeat(43),
+        format!("{}=", "A".repeat(43)),
+    ] {
+        for suffix in ["", "/"] {
+            let facet = format!("android://{hash}@com.example.App_1{suffix}");
+            entry.url = facet.clone();
+            entry.validate().unwrap();
+            assert_eq!(entry.url, facet);
+        }
+    }
+}
+
+#[test]
+fn android_facet_validation_rejects_malformed_identifiers_and_other_schemes() {
+    let mut entry = VaultEntry::new("Demo Android", "synthetic-user", "", "synthetic-secret");
+    for package in [
+        "",
+        "example",
+        ".com.example",
+        "com..example",
+        "com.example.",
+        "com.1example",
+        "com._example",
+        "com.example-app",
+        "com.ex ample",
+        "com.exampl\u{e9}",
+        "com.example:443",
+        "com.example/path",
+        "com.example//",
+        "com.example?query",
+        "com.example#fragment",
+        "com.example@evil.test",
+        "com.example\\path",
+        "com.%65xample",
+        "com.example\0",
+        "com.example\n",
+    ] {
+        entry.url = format!("android://hash@{package}");
+        assert!(
+            entry.validate().is_err(),
+            "Accepted invalid package: {package:?}"
+        );
+    }
+    for hash in [
+        "",
+        "a",
+        "ab",
+        "hash=",
+        "hash====",
+        "ha=sh",
+        "has+h",
+        "has/h",
+        "%68ash",
+        "hash:secret",
+    ] {
+        entry.url = format!("android://{hash}@com.example");
+        assert!(entry.validate().is_err(), "Accepted invalid hash: {hash:?}");
+    }
+    for url in [
+        "Android://hash@com.example",
+        "android:hash@com.example",
+        "android:///hash@com.example",
+        " android://hash@com.example",
+        "android://hash@com.example/\nhttps://evil.test",
+        "javascript:alert(1)",
+        "data:text/html,synthetic",
+        "file:///synthetic.txt",
+        "ftp://example.test",
+        "intent://example.test",
+        "about:blank",
+        "brave://settings",
+        "chrome-extension://synthetic/index.html",
+    ] {
+        entry.url = url.into();
+        assert!(
+            entry.validate().is_err(),
+            "Accepted unsupported identifier: {url:?}"
+        );
+    }
+}
+
+#[test]
 fn import_dedup_skips_exact_repeats_and_batch_duplicates_ignoring_bookkeeping() {
     let original = VaultEntry::new("Example", "synthetic-user", "", "synthetic-secret");
     let mut repeated = original.clone();
