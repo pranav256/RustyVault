@@ -1869,9 +1869,7 @@ impl App {
                 ui.horizontal(|ui| {
                     let label = ui.label("Type");
                     egui::ComboBox::from_id_salt("kind")
-                        .selected_text(if entry.kind.is_empty() {
-                            "Password"
-                        } else if entry.kind == "Login" {
+                        .selected_text(if entry.kind.is_empty() || entry.kind == "Login" {
                             "Password"
                         } else {
                             &entry.kind
