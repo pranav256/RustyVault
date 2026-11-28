@@ -3,12 +3,19 @@
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import textwrap
 import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
+BASH = shutil.which("bash") or "bash"
+if os.name == "nt" and (git := shutil.which("git")):
+    # Windows may resolve bash to WSL rather than the Git Bash used by Actions.
+    git_bash = Path(git).resolve().parent.parent / "bin" / "bash.exe"
+    if git_bash.is_file():
+        BASH = str(git_bash)
 WORKFLOW = (ROOT / ".github/workflows/release.yml").read_text(encoding="utf-8")
 # Read only this workflow's scalar matrix, env, step and run-block conventions.
 MATRIX = [
@@ -41,7 +48,7 @@ def run_block(step):
 
 def bash(script, env):
     return subprocess.run(
-        ["bash", "--noprofile", "--norc", "-euo", "pipefail", "-c", script],
+        [BASH, "--noprofile", "--norc", "-euo", "pipefail", "-c", script],
         cwd=ROOT, env={**os.environ, **env}, capture_output=True, text=True,
         timeout=10,
     )
@@ -79,7 +86,7 @@ class ReleaseWorkflowTests(unittest.TestCase):
                     self.assertEqual(upload, filename)
                     validation = STEPS["Validate release tag"]
                     result = bash(run_block(validation), {k: expand(v, context) for k, v in environment(validation).items()})
-                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                     windows = row["os"] == "windows-latest"
                     packaging = run_block(STEPS["Package Windows Archive" if windows else "Package Unix Archive"])
                     self.assertIn('"$ARCHIVE_NAME"', packaging)
@@ -87,7 +94,7 @@ class ReleaseWorkflowTests(unittest.TestCase):
                     # Stub only the existing copy/archiver commands; execute the actual shell arguments.
                     stubs = 'cp() { :; }; 7z() { printf "%s\\n" "$@"; }; tar() { printf "%s\\n" "$@"; };\n'
                     result = bash(stubs + expand(packaging, context), env)
-                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                     contents = [binary] + (["rustyvault-bridge.exe"] if windows else [])
                     contents += ["README.md", "LICENSE", "DESIGN.md", "assets", "docs"]
                     contents += ["browser-extension"] if windows else []
