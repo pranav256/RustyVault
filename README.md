@@ -110,7 +110,7 @@ release artifacts and build metadata, not users' vault files or master passwords
 3. On later launches, enter the master password and select **Unlock vault**.
 
 There is no password recovery. Keep the master passphrase safe.
-The locked screen offers **Open another vault…** and **Create another vault…**.
+The locked screen offers **Open another vault…** and **Create a new vault…**.
 Creating requires a new filename and never replaces an existing vault.
 You can also choose a file at startup:
 

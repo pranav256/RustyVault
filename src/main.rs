@@ -36,6 +36,10 @@ fn main() -> eframe::Result<()> {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size(size)
             .with_min_inner_size([900.0, 650.0])
+            .with_icon(
+                eframe::icon_data::from_png_bytes(include_bytes!("../assets/rustyvault.png"))
+                    .expect("The bundled RustyVault icon must be a valid PNG"),
+            )
             .with_title(if demo {
                 "RustyVault — Demo"
             } else {
@@ -606,7 +610,7 @@ impl App {
                         ui.label(if self.create {
                             "Choose a master passphrase of 12 characters or more."
                         } else {
-                            "Enter your master password to access your entries."
+                            "An encrypted vault already exists. Enter its master password, or create a new vault below."
                         });
                         ui.add_space(16.0);
                         let master_label=ui.label("Master password");
@@ -661,7 +665,7 @@ impl App {
                     self.error = None;
                 }
             }
-            if ui.add_enabled(!self.demo, egui::Button::new("Create another vault…")).clicked() {
+            if ui.add_enabled(!self.demo, egui::Button::new("Create a new vault…")).clicked() {
                 if let Some(path) = rfd::FileDialog::new().add_filter("Encrypted vault", &["enc"]).set_file_name("vault.enc").save_file() {
                     if path.exists() {
                         self.error = Some("Choose a new filename. Existing vaults are never replaced when creating.".into());
@@ -2364,6 +2368,30 @@ fn read_small_file(path: &Path, limit: u64) -> std::io::Result<Vec<u8>> {
 mod app_tests {
     use super::*;
     use eframe::egui::Color32;
+
+    #[test]
+    fn startup_prompts_for_creation_only_when_the_selected_vault_is_missing() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("personal.enc");
+        let fresh = App::new(false, Some(path.clone()));
+        assert!(fresh.create && fresh.vault.is_none());
+        assert!(fresh.master.is_empty() && fresh.confirm_master.is_empty());
+        assert!(!path.exists());
+
+        std::fs::write(&path, b"existing vault sentinel").unwrap();
+        let existing = App::new(false, Some(path.clone()));
+        assert!(!existing.create && existing.vault.is_none());
+        assert_eq!(std::fs::read(path).unwrap(), b"existing vault sentinel");
+    }
+
+    #[test]
+    fn native_window_icon_is_valid_and_square() {
+        let icon =
+            eframe::icon_data::from_png_bytes(include_bytes!("../assets/rustyvault.png")).unwrap();
+        assert!(icon.width >= 64);
+        assert_eq!(icon.width, icon.height);
+        assert_eq!(icon.rgba.len(), (icon.width * icon.height * 4) as usize);
+    }
 
     #[test]
     fn native_navigation_selects_views_without_discarding_drafts() {
