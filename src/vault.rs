@@ -1,13 +1,14 @@
 use crate::crypto::{self, CryptoError, DerivedKey, EncryptedEnvelope, SALT_LEN};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::fs;
 use std::io;
 use std::io::Write;
 use std::path::Path;
 use zeroize::{Zeroize, Zeroizing};
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Attachment {
     pub name: String,
     pub bytes: Vec<u8>,
@@ -462,6 +463,60 @@ impl Default for Vault {
     fn default() -> Self {
         Self::new()
     }
+}
+
+#[derive(PartialEq, Eq, Hash)]
+struct ImportContent<'a> {
+    service: &'a str,
+    username: &'a str,
+    email: &'a str,
+    password: &'a str,
+    url: &'a str,
+    notes: &'a str,
+    category: &'a str,
+    favorite: bool,
+    tags: &'a [String],
+    kind: &'a str,
+    totp_secret: &'a str,
+    expires_at: Option<DateTime<Utc>>,
+    fields: &'a [(String, String)],
+    attachments: &'a [Attachment],
+}
+
+impl<'a> From<&'a VaultEntry> for ImportContent<'a> {
+    fn from(entry: &'a VaultEntry) -> Self {
+        Self {
+            service: &entry.service,
+            username: &entry.username,
+            email: &entry.email,
+            password: &entry.password,
+            url: &entry.url,
+            notes: &entry.notes,
+            category: &entry.category,
+            favorite: entry.favorite,
+            tags: &entry.tags,
+            kind: &entry.kind,
+            totp_secret: &entry.totp_secret,
+            expires_at: entry.expires_at,
+            fields: &entry.fields,
+            attachments: &entry.attachments,
+        }
+    }
+}
+
+/// Returns incoming indices in order, skipping exact content already active or in this batch.
+/// Bookkeeping is ignored; credential whitespace and all user metadata remain significant.
+pub fn new_import_indices(existing: &[VaultEntry], incoming: &[VaultEntry]) -> Vec<usize> {
+    let mut seen: HashSet<_> = existing
+        .iter()
+        .filter(|entry| entry.deleted_at.is_none())
+        .map(ImportContent::from)
+        .collect();
+    incoming
+        .iter()
+        .enumerate()
+        .filter_map(|(index, entry)| seen.insert(ImportContent::from(entry)).then_some(index))
+        .collect()
 }
 
 pub fn read_csv(bytes: &[u8]) -> Result<Vec<VaultEntry>, VaultError> {

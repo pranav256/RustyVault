@@ -3,7 +3,10 @@ use rusty_vault::{
     browser::{read_frame, write_frame},
     crypto::{self, CryptoError, NONCE_LEN, SALT_LEN},
     generator::{generate_password, GeneratorConfig},
-    vault::{read_csv, write_csv, EntryRevision, Vault, VaultEntry, VaultError},
+    vault::{
+        new_import_indices, read_csv, write_csv, Attachment, EntryRevision, Vault, VaultEntry,
+        VaultError,
+    },
 };
 use std::{fs, io::Cursor, panic::catch_unwind};
 
@@ -115,6 +118,83 @@ fn browser_csv_exports_preserve_credentials_notes_and_firefox_metadata() {
     assert!(read_csv(b"name,url,username,password\n,https://example.test,user,secret\n").is_err());
     assert!(read_csv(b"url,username,password\n,user,secret\n").is_err());
     assert!(read_csv(b"url,username,password\nhttps://example.test,user\n").is_err());
+}
+
+#[test]
+fn import_dedup_skips_exact_repeats_and_batch_duplicates_ignoring_bookkeeping() {
+    let original = VaultEntry::new("Example", "synthetic-user", "", "synthetic-secret");
+    let mut repeated = original.clone();
+    repeated.id = "different-generated-id".into();
+    repeated.created_at -= chrono::Duration::days(1);
+    repeated.updated_at += chrono::Duration::days(1);
+    repeated.history.push(EntryRevision {
+        saved_at: repeated.created_at,
+        service: "Earlier title".into(),
+        username: String::new(),
+        email: String::new(),
+        password: "synthetic-earlier-secret".into(),
+        url: String::new(),
+        notes: String::new(),
+        totp_secret: String::new(),
+        fields: Vec::new(),
+    });
+    let distinct = VaultEntry::new("Different", "synthetic-user", "", "synthetic-secret");
+    let incoming = [repeated, original.clone(), distinct.clone(), distinct];
+    assert_eq!(new_import_indices(&[], &incoming), vec![0, 2]);
+    assert_eq!(new_import_indices(&[original], &incoming), vec![2]);
+}
+
+#[test]
+fn import_dedup_preserves_changed_credentials_whitespace_and_every_metadata_field() {
+    let original = VaultEntry::new(
+        "Example",
+        "synthetic-user",
+        "synthetic@example.test",
+        "synthetic-secret",
+    );
+    let changes: [fn(&mut VaultEntry); 15] = [
+        |e| e.service.push(' '),
+        |e| e.username.insert(0, ' '),
+        |e| e.email.push(' '),
+        |e| e.password.push(' '),
+        |e| e.password = "changed-synthetic-secret".into(),
+        |e| e.url = "https://example.test".into(),
+        |e| e.notes = "New note".into(),
+        |e| e.category = "Work".into(),
+        |e| e.favorite = true,
+        |e| e.tags.push("work".into()),
+        |e| e.kind = "Secure note".into(),
+        |e| e.totp_secret = "synthetic-otp".into(),
+        |e| e.expires_at = Some(e.created_at),
+        |e| e.fields.push(("Label".into(), "Value".into())),
+        |e| {
+            e.attachments.push(Attachment {
+                name: "note.txt".into(),
+                bytes: b"synthetic attachment".to_vec(),
+            })
+        },
+    ];
+    let incoming: Vec<_> = changes
+        .iter()
+        .map(|change| {
+            let mut entry = original.clone();
+            change(&mut entry);
+            entry
+        })
+        .collect();
+    assert_eq!(
+        new_import_indices(&[original], &incoming),
+        (0..changes.len()).collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn import_dedup_allows_reimport_when_only_a_trashed_copy_exists() {
+    let original = VaultEntry::new("Example", "synthetic-user", "", "synthetic-secret");
+    let mut trashed = original.clone();
+    trashed.deleted_at = Some(chrono::Utc::now());
+    let incoming = [original.clone(), original];
+    assert_eq!(new_import_indices(&[trashed], &incoming), vec![0]);
 }
 
 #[test]

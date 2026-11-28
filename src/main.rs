@@ -99,7 +99,19 @@ fn main() -> eframe::Result<()> {
                         app.analyze();
                     }
                     Some("new") => app.add_password(),
-                    Some("browser-import") => app.browser_import_open = true,
+                    Some("browser-import") => app.open_browser_guide(false),
+                    Some("browser-setup") => app.open_browser_guide(true),
+                    Some("named-password") => {
+                        app.add_password();
+                        app.editing.as_mut().unwrap().service = "Example account".into();
+                    }
+                    Some("import-duplicates") => {
+                        let existing = app.selected_entry().unwrap();
+                        let mut changed = existing.clone();
+                        changed.id = format!("{:x}", rand::random::<u128>());
+                        changed.password = "SYNTHETIC-CHANGED-PASSWORD".into();
+                        app.pending_import = Some(vec![existing, changed]);
+                    }
                     Some("locked") => app.lock(&cc.egui_ctx),
                     _ => {}
                 }
@@ -273,6 +285,7 @@ struct App {
     notice: String,
     confirmation: Option<Confirm>,
     pending_import: Option<Vec<VaultEntry>>,
+    pending_import_indices: Option<Vec<usize>>,
     dialog_focus: Option<Option<egui::Id>>,
     group_name: String,
     config: GeneratorConfig,
@@ -294,6 +307,7 @@ struct App {
     browser_failed: bool,
     browser_kind: BrowserKind,
     browser_import_open: bool,
+    browser_setup_only: bool,
     browser_setup_path: Option<PathBuf>,
     browser_import_pending: bool,
     browser_last_seen: Option<Instant>,
@@ -329,6 +343,7 @@ impl App {
             notice: String::new(),
             confirmation: None,
             pending_import: None,
+            pending_import_indices: None,
             dialog_focus: None,
             group_name: String::new(),
             config: GeneratorConfig::default(),
@@ -350,6 +365,7 @@ impl App {
             browser_failed: false,
             browser_kind: BrowserKind::default(),
             browser_import_open: false,
+            browser_setup_only: false,
             browser_setup_path: None,
             browser_import_pending: false,
             browser_last_seen: None,
@@ -496,10 +512,15 @@ impl App {
             );
             self.track("import-browser", "Import from browser", "button", &import);
             if import.clicked() {
-                self.error = None;
-                self.browser_import_open = true;
+                self.open_browser_guide(false);
             }
         });
+    }
+
+    fn open_browser_guide(&mut self, setup: bool) {
+        self.browser_import_open = true;
+        self.browser_setup_only = setup;
+        self.error = None;
     }
     fn keyboard_shortcuts(&mut self, ctx: &egui::Context) {
         if ctx.input_mut(|i| i.consume_key(egui::Modifiers::CTRL, egui::Key::L)) {
@@ -544,6 +565,7 @@ impl App {
             match result {
                 Ok(entries) => {
                     self.pending_import = Some(entries);
+                    self.pending_import_indices = None;
                     self.browser_import_pending = from_browser;
                     self.browser_import_open = false;
                     self.error = None;
@@ -579,7 +601,7 @@ impl App {
                 self.browser_setup_path = Some(path);
                 self.error = None;
                 self.notice = format!(
-                    "Native host registered for {}. Load the extension next.",
+                    "Connection prepared for {}. Add the extension next.",
                     self.browser_kind.label()
                 );
             }
@@ -643,14 +665,22 @@ impl App {
         }
         let colors = Palette::get(ctx);
         let mut close = ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape));
-        egui::Window::new("Import passwords from your browser")
+        egui::Window::new(if self.browser_setup_only {
+            "Set up browser extension"
+        } else {
+            "Import passwords from your browser"
+        })
             .order(egui::Order::Foreground).collapsible(false).resizable(false)
             .anchor(egui::Align2::CENTER_CENTER, Vec2::ZERO).default_width(540.0)
             .show(ctx, |ui| {
                 egui::ScrollArea::vertical().id_salt("browser-import-scroll")
                     .max_height((ctx.screen_rect().height() - 220.0).clamp(240.0, 480.0))
                     .show(ui, |ui| {
-                        ui.label("Bring saved passwords into this vault using your browser's password export.");
+                        ui.label(if self.browser_setup_only {
+                            "Connect your browser to save and fill logins with RustyVault."
+                        } else {
+                            "Bring saved passwords into this vault using your browser's password export."
+                        });
                         ui.horizontal(|ui| {
                             let label = ui.label("Browser");
                             let selected = self.browser_kind;
@@ -664,6 +694,9 @@ impl App {
                             if self.browser_kind != selected { self.browser_setup_path = None; }
                         });
                         ui.add_space(8.0);
+                        if self.browser_setup_only {
+                            self.browser_setup_controls(ui);
+                        } else {
                         ui.label(RichText::new("1. Open your browser's password manager").strong());
                         let open = ui.button(format!("Open {} password manager", self.browser_kind.label()));
                         self.track("browser-open-manager", "Open browser password manager", "button", &open);
@@ -678,26 +711,9 @@ impl App {
                         ui.label(RichText::new("The CSV contains readable passwords. Delete it after importing, including copies in Downloads and the Recycle Bin.").small().color(colors.danger));
                         ui.add_space(8.0);
                         egui::CollapsingHeader::new("Optional: save and fill future logins")
-                            .id_salt("browser-connection-setup").show(ui, |ui| {
-                                ui.label("Set up the RustyVault extension separately for future saves and fills.");
-                                let setup = ui.add_enabled(cfg!(windows) || self.demo, egui::Button::new("Register browser connection"));
-                                self.track("browser-setup-native", "Register browser connection", "button", &setup);
-                                if setup.clicked() { self.setup_browser_connection(); }
-                                if let Some(path) = &self.browser_setup_path {
-                                    ui.label(RichText::new("Native host registered. Load the extension next:").strong());
-                                    ui.label(path.to_string_lossy().as_ref());
-                                    ui.label(match self.browser_kind {
-                                        BrowserKind::Firefox => "In Firefox, open about:debugging#/runtime/this-firefox, choose Load Temporary Add-on, then select manifest.json in the folder above. This temporary add-on must be loaded again after restarting Firefox.",
-                                        BrowserKind::Brave => "In Brave, open brave://extensions, turn on Developer mode, choose Load unpacked, then select the folder above.",
-                                        BrowserKind::Chrome => "In Chrome, open chrome://extensions, turn on Developer mode, choose Load unpacked, then select the folder above.",
-                                        BrowserKind::Edge => "In Edge, open edge://extensions, turn on Developer mode, choose Load unpacked, then select the folder above.",
-                                    });
-                                }
-                                if !cfg!(windows) && !self.demo {
-                                    ui.label("Automatic extension setup currently supports Windows. CSV import is available here.");
-                                }
-                                self.browser_connection_controls(ui);
-                            });
+                            .id_salt("browser-connection-setup")
+                            .show(ui, |ui| self.browser_setup_controls(ui));
+                        }
                         self.message(ui);
                         if self.demo && !self.notice.is_empty() {
                             ui.label(RichText::new(&self.notice).small().color(colors.muted));
@@ -705,7 +721,7 @@ impl App {
                     });
                 ui.add_space(12.0);
                 let response = ui.add_sized([88.0, 36.0], egui::Button::new("Close"));
-                self.track("browser-close", "Close browser import", "button", &response);
+                self.track("browser-close", "Close browser guide", "button", &response);
                 close |= response.clicked();
                 if focus_new { response.request_focus(); }
             });
@@ -717,6 +733,38 @@ impl App {
                 ctx.memory_mut(|memory| memory.request_focus(id));
             }
         }
+    }
+
+    fn browser_setup_controls(&mut self, ui: &mut egui::Ui) {
+        ui.label(RichText::new("1. Prepare the browser connection").strong());
+        let label = format!("Prepare {} connection", self.browser_kind.label());
+        let setup = ui.add_enabled(cfg!(windows) || self.demo, egui::Button::new(&label));
+        self.track("browser-setup-native", &label, "button", &setup);
+        if setup.clicked() {
+            self.setup_browser_connection();
+        }
+        ui.add_space(8.0);
+        ui.label(RichText::new("2. Add the RustyVault extension").strong());
+        if let Some(path) = &self.browser_setup_path {
+            ui.label("Use this extension folder:");
+            ui.label(path.to_string_lossy().as_ref());
+            ui.label(match self.browser_kind {
+                BrowserKind::Firefox => "In Firefox, open about:debugging#/runtime/this-firefox, choose Load Temporary Add-on, then select manifest.json in this folder. Repeat after restarting Firefox.",
+                BrowserKind::Brave => "In Brave, open brave://extensions, turn on Developer mode, choose Load unpacked, then select this folder.",
+                BrowserKind::Chrome => "In Chrome, open chrome://extensions, turn on Developer mode, choose Load unpacked, then select this folder.",
+                BrowserKind::Edge => "In Edge, open edge://extensions, turn on Developer mode, choose Load unpacked, then select this folder.",
+            });
+        } else {
+            ui.label(
+                "Prepare the connection above to see the extension folder and installation steps.",
+            );
+        }
+        if !cfg!(windows) && !self.demo {
+            ui.label("Automatic extension setup currently supports Windows. CSV import is available here.");
+        }
+        ui.add_space(8.0);
+        ui.label(RichText::new("3. Allow saves and fills").strong());
+        self.browser_connection_controls(ui);
     }
 
     fn clear_clipboard(&mut self) {
@@ -745,6 +793,7 @@ impl App {
         self.browser_failed = false;
         self.browser_last_seen = None;
         self.browser_import_open = false;
+        self.browser_setup_only = false;
         self.browser_import_pending = false;
         self.browser_setup_path = None;
         ctx.memory_mut(|m| m.data.clear());
@@ -754,6 +803,7 @@ impl App {
         self.vault_lock = None;
         self.editing = None;
         self.pending_import = None;
+        self.pending_import_indices = None;
         self.confirmation = None;
         self.dialog_focus = None;
         self.master.zeroize();
@@ -1413,8 +1463,7 @@ impl App {
                     &import,
                 );
                 if import.clicked() {
-                    self.error = None;
-                    self.browser_import_open = true;
+                    self.open_browser_guide(false);
                 }
             });
             return;
@@ -1877,10 +1926,35 @@ impl App {
                     .labelled_by(label.id);
                 }
                 ui.add_space(8.0);
+                let separate_website = entry.kind != "Secure note"
+                    && !entry.service.trim().is_empty()
+                    && inferred_website(&entry.service).is_none();
+                if separate_website {
+                    form_field(
+                        ui,
+                        "Website for browser filling (optional)",
+                        &mut entry.url,
+                        false,
+                    );
+                    let help = ui.label(
+                        RichText::new("Use github.com, or leave blank for a local account.")
+                            .small()
+                            .color(colors.muted),
+                    );
+                    self.track(
+                        "autofill-website-help",
+                        "Website needed for browser filling",
+                        "text",
+                        &help,
+                    );
+                    ui.add_space(8.0);
+                }
                 egui::CollapsingHeader::new("Optional details")
                     .id_salt((&entry.id, "optional-details"))
                     .show(ui, |ui| {
-                        form_field(ui, "Website URL (optional)", &mut entry.url, false);
+                        if !separate_website {
+                            form_field(ui, "Website URL (optional)", &mut entry.url, false);
+                        }
                         if self.editor_uses_email {
                             form_field(
                                 ui,
@@ -1969,6 +2043,11 @@ impl App {
             });
         let mut saved = false;
         if save {
+            if entry.kind != "Secure note" && !entry.url.is_empty() && !entry.url.contains("://") {
+                if let Some(website) = inferred_website(&entry.url) {
+                    entry.url = website;
+                }
+            }
             if is_new && entry.kind != "Secure note" && entry.url.is_empty() {
                 if let Some(website) = inferred_website(&entry.service) {
                     entry.url = website;
@@ -2260,10 +2339,15 @@ impl App {
         ui.add_space(24.0);
         egui::ScrollArea::vertical().max_width(760.0).show(ui, |ui| {
             settings_section(ui, "Browser connection", |ui| {
+                let setup = ui.button("Set up browser extension...");
+                self.track("settings-browser-setup", "Set up browser extension", "button", &setup);
+                if setup.clicked() { self.open_browser_guide(true); }
+                ui.label(RichText::new("Connect your browser for future saves and fills.").small().color(colors.muted));
+                ui.add_space(8.0);
                 let import = ui.button("Import from browser...");
                 self.track("settings-import-browser", "Import from browser", "button", &import);
-                if import.clicked() { self.browser_import_open = true; self.error = None; }
-                ui.label(RichText::new("Use your browser's CSV export for existing passwords. The import guide also includes extension setup for future saves and fills.").small().color(colors.muted));
+                if import.clicked() { self.open_browser_guide(false); }
+                ui.label(RichText::new("Bring existing passwords into this vault using a browser CSV export.").small().color(colors.muted));
                 self.browser_connection_controls(ui);
             });
             settings_section(ui, "Appearance", |ui| {
@@ -2298,7 +2382,7 @@ ui.add_space(8.0);egui::Grid::new("security-timing").num_columns(2).spacing([24.
             settings_section(ui, "Backups and import", |ui| {
 ui.label(RichText::new("The previous encrypted file is kept as vault.enc.bak after every save.").color(colors.muted));ui.horizontal_wrapped(|ui|{if ui.add_enabled(!self.demo,egui::Button::new("Encrypted backup…")).clicked(){if let Some(path)=rfd::FileDialog::new().add_filter("Encrypted vault",&["enc"]).set_file_name("rustyvault-backup.enc").save_file(){if let Err(e)=self.check_export_path(&path).and_then(|_|self.check_export_path(&path.with_extension("enc.bak"))){self.error=Some(e.to_string());}else if let Some(key)=&self.key{match self.vault.as_ref().unwrap().save_to_file(&path,key){Ok(())=>self.notice="Encrypted backup saved".into(),Err(e)=>self.error=Some(e.to_string())}}else{self.error=Some("Backups are unavailable in demo mode".into());}}}
                 if ui.button("Import CSV...").clicked() { self.choose_csv(false); }
-                if ui.add_enabled(!self.demo,egui::Button::new("Import legacy emails.txt…")).clicked(){if let Some(path)=rfd::FileDialog::new().add_filter("Legacy text",&["txt"]).pick_file(){let mut imported=Vault::new();match imported.import_legacy_txt(&path){Ok(_)=>self.pending_import=Some(imported.entries),Err(e)=>self.error=Some(e.to_string())}}}
+                if ui.add_enabled(!self.demo,egui::Button::new("Import legacy emails.txt…")).clicked(){if let Some(path)=rfd::FileDialog::new().add_filter("Legacy text",&["txt"]).pick_file(){let mut imported=Vault::new();match imported.import_legacy_txt(&path){Ok(_)=>{self.pending_import=Some(imported.entries);self.pending_import_indices=None;},Err(e)=>self.error=Some(e.to_string())}}}
                 if ui.add_enabled(!self.demo,egui::Button::new("Export plaintext CSV…")).clicked(){self.confirmation=Some(Confirm::Export);}
             });ui.add_space(8.0);ui.label(RichText::new(self.path.to_string_lossy()).small().color(colors.muted));
 
@@ -2436,17 +2520,23 @@ form_field(ui,"Current master password",&mut self.master,true);form_field(ui,"Ne
             }
         }
         if let Some(entries) = self.pending_import.take() {
+            let new_indices = self.pending_import_indices.take().unwrap_or_else(|| {
+                vault::new_import_indices(&self.vault.as_ref().unwrap().entries, &entries)
+            });
+            let skipped = entries.len() - new_indices.len();
             let mut confirm = false;
             let mut cancel =
                 ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape));
             egui::Window::new("Review import").order(egui::Order::Foreground).collapsible(false).resizable(false).anchor(egui::Align2::CENTER_CENTER,Vec2::ZERO).default_width(440.0).show(ctx,|ui|{
-                ui.label(format!("{} entries will be added to your current vault. Existing entries are kept.",entries.len()));
+                ui.label(format!("To import: {} · Exact duplicates skipped: {}",new_indices.len(),skipped));
+                ui.label("Existing entries are kept. Different passwords or details are imported separately.");
                 if self.browser_import_pending { ui.label(RichText::new("After importing, delete the exported plaintext CSV, including any extra copies.").color(Palette::get(ui.ctx()).danger)); }
-                egui::ScrollArea::vertical().max_height(240.0).show(ui,|ui|{for entry in entries.iter().take(50){ui.label(format!("{} · {}",entry.service,entry.username_or_email()));}});
-                if entries.len()>50{ui.label(format!("And {} more entries",entries.len()-50));}
+                egui::ScrollArea::vertical().max_height(240.0).show(ui,|ui|{for &index in new_indices.iter().take(50){let entry=&entries[index];ui.label(format!("{} · {}",entry.service,entry.username_or_email()));}});
+                if new_indices.len()>50{ui.label(format!("And {} more entries",new_indices.len()-50));}
+                if new_indices.is_empty(){ui.label("No new entries to import.");}
                 ui.add_space(16.0);
                 ui.horizontal(|ui|{
-                    let import_response=ui.button("Import entries");
+                    let import_response=ui.add_enabled(!new_indices.is_empty(),egui::Button::new("Import entries"));
                     let cancel_response=ui.button("Cancel");
                     confirm=import_response.clicked();
                     cancel |= cancel_response.clicked();
@@ -2457,15 +2547,16 @@ form_field(ui,"Current master password",&mut self.master,true);form_field(ui,"Ne
             });
             if confirm {
                 let mut next = self.vault.as_ref().unwrap().clone();
-                next.entries.extend(entries.clone());
-                let message = if self.browser_import_pending {
-                    format!(
-                        "Imported {} entries. Delete the exported plaintext CSV.",
-                        entries.len()
-                    )
-                } else {
-                    format!("Imported {} entries", entries.len())
-                };
+                next.entries
+                    .extend(new_indices.iter().map(|&index| entries[index].clone()));
+                let mut message = format!(
+                    "Imported: {}. Exact duplicates skipped: {}.",
+                    new_indices.len(),
+                    skipped
+                );
+                if self.browser_import_pending {
+                    message.push_str(" Delete the exported plaintext CSV.");
+                }
                 if !self.commit(next, &message) {
                     self.pending_import = Some(entries);
                 }
@@ -2477,6 +2568,8 @@ form_field(ui,"Current master password",&mut self.master,true);form_field(ui,"Ne
                 if let Some(id) = self.dialog_focus.take().flatten() {
                     ctx.memory_mut(|m| m.request_focus(id));
                 }
+            } else {
+                self.pending_import_indices = Some(new_indices);
             }
         }
     }
@@ -2644,7 +2737,11 @@ impl eframe::App for App {
                         } else if self.pending_import.is_some() {
                             "Import preview"
                         } else if self.browser_import_open {
-                            "Browser import"
+                            if self.browser_setup_only {
+                                "Browser setup"
+                            } else {
+                                "Browser import"
+                            }
                         } else {
                             self.view.title()
                         };
@@ -3046,6 +3143,7 @@ mod app_tests {
                     egui::CentralPanel::default().show(ctx, |ui| match screen {
                         "actions" => app.password_actions(ui),
                         "editor" => app.editor(ui),
+                        "settings" => app.settings_screen(ui),
                         _ => unreachable!(),
                     });
                 }
@@ -3196,6 +3294,111 @@ mod app_tests {
             app.selected_entry().unwrap().notes,
             "Synthetic note content"
         );
+    }
+
+    #[test]
+    fn browser_setup_is_direct_and_import_remains_separate() {
+        let ctx = egui::Context::default();
+        theme(&ctx, true);
+        let mut app = App::new(true, None);
+        app.capture = Some("unused-demo-capture".into());
+        click_fragment(&mut app, &ctx, "settings", "settings-browser-setup");
+        assert!(app.browser_import_open && app.browser_setup_only);
+        fragment_frame(&mut app, &ctx, vec![], "dialogs");
+        assert!(app
+            .bounds
+            .iter()
+            .any(|value| value["id"] == "browser-setup-native"));
+        assert!(!app
+            .bounds
+            .iter()
+            .any(|value| value["id"] == "browser-choose-csv"));
+        click_fragment(&mut app, &ctx, "dialogs", "browser-setup-native");
+        assert!(app.browser_setup_path.is_some() && app.browser.is_none());
+        click_fragment(&mut app, &ctx, "dialogs", "browser-close");
+        assert!(!app.browser_import_open);
+        click_fragment(&mut app, &ctx, "settings", "settings-import-browser");
+        assert!(app.browser_import_open && !app.browser_setup_only);
+        fragment_frame(&mut app, &ctx, vec![], "dialogs");
+        assert!(app
+            .bounds
+            .iter()
+            .any(|value| value["id"] == "browser-choose-csv"));
+        app.lock(&ctx);
+        assert!(!app.browser_import_open && !app.browser_setup_only);
+    }
+
+    #[test]
+    fn named_accounts_explain_autofill_and_accept_websites_or_local_accounts() {
+        let ctx = egui::Context::default();
+        theme(&ctx, true);
+        let mut app = App::new(true, None);
+        app.capture = Some("unused-demo-capture".into());
+        app.add_password();
+        app.editing.as_mut().unwrap().service = "Example account".into();
+        app.editing.as_mut().unwrap().password = "SYNTHETIC-DEMO-ONLY".into();
+        fragment_frame(&mut app, &ctx, vec![], "editor");
+        assert!(app
+            .bounds
+            .iter()
+            .any(|value| value["id"] == "autofill-website-help"));
+        app.editing.as_mut().unwrap().url = "example.test/login".into();
+        click_fragment(&mut app, &ctx, "editor", "save-entry");
+        assert!(app.editing.is_none());
+        assert_eq!(
+            app.selected_entry().unwrap().url,
+            "https://example.test/login"
+        );
+        app.add_password();
+        app.editing.as_mut().unwrap().service = "Local account".into();
+        app.editing.as_mut().unwrap().password = "SYNTHETIC-DEMO-ONLY".into();
+        click_fragment(&mut app, &ctx, "editor", "save-entry");
+        assert!(app.editing.is_none());
+        assert!(app.selected_entry().unwrap().url.is_empty());
+        app.add_password();
+        app.editing.as_mut().unwrap().service = "example.test".into();
+        fragment_frame(&mut app, &ctx, vec![], "editor");
+        assert!(!app
+            .bounds
+            .iter()
+            .any(|value| value["id"] == "autofill-website-help"));
+    }
+
+    #[test]
+    fn import_review_skips_exact_duplicates_and_preserves_changed_passwords() {
+        let ctx = egui::Context::default();
+        theme(&ctx, true);
+        let mut app = App::new(true, None);
+        app.capture = Some("unused-demo-capture".into());
+        let original = app.selected_entry().unwrap();
+        let mut changed = original.clone();
+        changed.id = "synthetic-import-id".into();
+        changed.password = "SYNTHETIC-CHANGED-PASSWORD".into();
+        let before = app.vault.as_ref().unwrap().entries.len();
+        app.pending_import = Some(vec![original.clone(), changed.clone(), changed.clone()]);
+        click_fragment(&mut app, &ctx, "dialogs", "dialog-confirm");
+        assert!(app.pending_import.is_none());
+        assert_eq!(app.vault.as_ref().unwrap().entries.len(), before + 1);
+        assert!(app
+            .notice
+            .contains("Imported: 1. Exact duplicates skipped: 2."));
+        assert_eq!(
+            app.vault
+                .as_ref()
+                .unwrap()
+                .entries
+                .iter()
+                .find(|entry| entry.id == original.id)
+                .unwrap()
+                .password,
+            original.password
+        );
+        app.pending_import = Some(vec![original, changed]);
+        click_fragment(&mut app, &ctx, "dialogs", "dialog-confirm");
+        assert!(app.pending_import.is_some());
+        assert_eq!(app.vault.as_ref().unwrap().entries.len(), before + 1);
+        click_fragment(&mut app, &ctx, "dialogs", "dialog-cancel");
+        assert!(app.pending_import.is_none());
     }
 
     #[test]
