@@ -67,6 +67,41 @@ The binaries are `target/release/rusty-vault.exe` on Windows and
 a graphical desktop session. Browser integration is optional and local-only; it
 requires the desktop app, an explicit site permission and the unlocked vault.
 
+## Code signing policy
+
+SignPath enrollment is pending: the application form is prepared but has not been
+submitted. No SignPath account, certificate or API token is configured, and
+**v0.1.1 remains unsigned**. We intend to use free code signing from
+[SignPath.io](https://signpath.io/) with a certificate from
+[SignPath Foundation](https://signpath.org/), subject to approval; this is not a
+claim of current sponsorship.
+
+Committers, reviewers and signing approvers: [@pranav256](https://github.com/pranav256).
+The planned signing policy requires manual approval of each signing request,
+SHA-256 signatures and RFC 3161 timestamps. It covers the two Windows executables
+(`rusty-vault.exe`, `rustyvault-bridge.exe`) and the two browser setup scripts
+(`install-native-host.ps1`, `install-brave.ps1`). macOS signing and browser-store
+signing are unchanged and are not part of this setup.
+
+After enrollment is approved:
+
+1. Configure SignPath's GitHub trusted build system for this repository, using
+   GitHub-hosted builds and uploaded GitHub Actions artifacts.
+2. Upload `.github/signpath-artifact-configuration.xml` as the project's artifact
+   configuration and require manual signing approval.
+3. Add the GitHub Actions secret `SIGNPATH_API_TOKEN` and repository variables
+   `SIGNPATH_ORGANIZATION_ID`, `SIGNPATH_PROJECT_SLUG`,
+   `SIGNPATH_SIGNING_POLICY_SLUG` and `SIGNPATH_ARTIFACT_CONFIGURATION_SLUG`.
+
+See the [Foundation conditions](https://signpath.org/terms) and
+[GitHub trusted-build setup](https://docs.signpath.io/trusted-build-systems/github).
+
+**Privacy:** Vault storage and password checks run locally. RustyVault has no
+telemetry, breach-service lookups or cloud sync. Optional browser integration uses
+native messaging and a loopback connection to the desktop app; credentials reach
+an authorized HTTPS page only when you choose to fill them. Signing concerns
+release artifacts and build metadata, not users' vault files or master passwords.
+
 ## First use
 
 1. Choose and confirm a master passphrase with **at least 12 characters** and
@@ -169,6 +204,17 @@ services. OS screen-lock events are not monitored; use idle/focus-loss locking.
 There is no KDBX interoperability, key-file/hardware/biometric unlock, passkeys,
 Auto-Type or cloud sync. Browser integration currently supports Windows and
 standard HTTPS login forms; it is not full KeePassXC parity.
+
+## Uninstall
+
+RustyVault is portable. Lock and close it, then remove the extracted application
+files. If you installed the browser connection, first follow the
+[browser extension uninstall steps](browser-extension/README.md#uninstall) to
+remove its native-host registrations and generated manifests.
+
+Your encrypted vault and backups are separate from the executable by default.
+Keep your `.enc` and `.enc.bak` files, including any custom vault paths; do not
+delete the OS data directory listed under **First use** if you want to retain them.
 
 ## License
 

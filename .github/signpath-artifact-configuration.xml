@@ -1,0 +1,19 @@
+<artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
+  <parameters>
+    <parameter name="version" required="true" />
+  </parameters>
+  <zip-file>
+    <pe-file path="rusty-vault.exe" product-name="RustyVault" product-version="${version}">
+      <authenticode-sign hash-algorithm="sha256" />
+    </pe-file>
+    <pe-file path="rustyvault-bridge.exe" product-name="RustyVault" product-version="${version}">
+      <authenticode-sign hash-algorithm="sha256" />
+    </pe-file>
+    <powershell-file path="browser-extension/install-native-host.ps1">
+      <authenticode-sign hash-algorithm="sha256" />
+    </powershell-file>
+    <powershell-file path="browser-extension/install-brave.ps1">
+      <authenticode-sign hash-algorithm="sha256" />
+    </powershell-file>
+  </zip-file>
+</artifact-configuration>

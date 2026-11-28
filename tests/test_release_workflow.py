@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import textwrap
 import unittest
+import xml.etree.ElementTree as ET
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -17,6 +18,7 @@ if os.name == "nt" and (git := shutil.which("git")):
     if git_bash.is_file():
         BASH = str(git_bash)
 WORKFLOW = (ROOT / ".github/workflows/release.yml").read_text(encoding="utf-8")
+POWERSHELL = shutil.which("pwsh") or shutil.which("powershell")
 # Read only this workflow's scalar matrix, env, step and run-block conventions.
 MATRIX = [
     dict(re.findall(r"^\s*(?:- )?(\w+): (.+)$", row, re.MULTILINE))
@@ -55,6 +57,74 @@ def bash(script, env):
 
 
 class ReleaseWorkflowTests(unittest.TestCase):
+    def test_windows_signing_covers_every_executable_and_installer_before_packaging(self):
+        files = {
+            "rusty-vault.exe", "rustyvault-bridge.exe",
+            "browser-extension/install-native-host.ps1", "browser-extension/install-brave.ps1",
+        }
+        ns = {"s": "http://signpath.io/artifact-configuration/v1"}
+        config = ET.parse(ROOT / ".github/signpath-artifact-configuration.xml")
+        targets = config.findall("s:zip-file/*", ns)
+        self.assertEqual({target.attrib["path"] for target in targets}, files)
+        self.assertEqual(len(targets), len(files))
+        for target in targets:
+            self.assertEqual(target.find("s:authenticode-sign", ns).attrib["hash-algorithm"], "sha256")
+            if target.tag.endswith("}pe-file"):
+                self.assertEqual(target.attrib["product-name"], "RustyVault")
+                self.assertEqual(target.attrib["product-version"], "${version}")
+        stages = [
+            "Validate Windows signing configuration", "Build release binary",
+            "Prepare Windows signing files", "Upload Windows signing files",
+            "Sign Windows files", "Verify Windows signatures", "Package Windows Archive",
+            "Publish Release Assets",
+        ]
+        order = [list(STEPS).index(stage) for stage in stages]
+        self.assertEqual(order, sorted(order))
+        for stage in stages:
+            self.assertNotIn("continue-on-error", STEPS[stage])
+        for stage in stages[2:-1]:
+            self.assertEqual(scalar(STEPS[stage], "if"), "matrix.os == 'windows-latest'")
+        for path in files:
+            self.assertIn(path, STEPS["Upload Windows signing files"])
+            self.assertIn(path, STEPS["Verify Windows signatures"])
+            self.assertIn(f"cp signed-windows/{path}", STEPS["Package Windows Archive"])
+        self.assertNotIn("cp target/", STEPS["Package Windows Archive"])
+        self.assertEqual(scalar(STEPS["Sign Windows files"], "wait-for-completion"), "true")
+        self.assertEqual(scalar(STEPS["Sign Windows files"], "output-artifact-directory"), "signed-windows")
+
+    @unittest.skipUnless(POWERSHELL, "PowerShell is needed to exercise the Windows signature gate")
+    def test_windows_signature_gate_rejects_unsigned_or_untimestamped_files(self):
+        mock = """
+$ErrorActionPreference = 'Stop'
+function Get-AuthenticodeSignature {
+    param([string]$LiteralPath)
+    $status = 'Valid'
+    $timestamp = $true
+    if ($env:TEST_INVALID_FILE -and $LiteralPath.Replace('\\', '/').EndsWith($env:TEST_INVALID_FILE)) {
+        $status = $env:TEST_SIGNATURE_STATUS
+        $timestamp = $null
+    }
+    [pscustomobject]@{Status=$status; TimeStamperCertificate=$timestamp}
+}
+"""
+        files = ("rusty-vault.exe", "rustyvault-bridge.exe",
+                 "browser-extension/install-native-host.ps1", "browser-extension/install-brave.ps1")
+        cases = [("", "Valid"), *((path, "NotSigned") for path in files), (files[-1], "Valid")]
+        for path, status in cases:
+            with self.subTest(path=path, status=status):
+                result = subprocess.run(
+                    [POWERSHELL, "-NoProfile", "-NonInteractive", "-Command",
+                     mock + run_block(STEPS["Verify Windows signatures"])],
+                    cwd=ROOT, env={**os.environ, "TEST_INVALID_FILE": path, "TEST_SIGNATURE_STATUS": status},
+                    capture_output=True, text=True, timeout=15,
+                )
+                if path:
+                    self.assertNotEqual(result.returncode, 0, result.stdout)
+                    self.assertIn("valid timestamped Authenticode signature", result.stderr)
+                else:
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertEqual(len(result.stdout.splitlines()), len(files))
+
     def test_release_stays_draft_until_every_platform_build_succeeds(self):
         publish_job = WORKFLOW.split("\n  publish:\n", 1)[1]
         self.assertEqual(scalar(publish_job, "needs"), "publish-release")

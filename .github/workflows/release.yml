@@ -6,6 +6,7 @@ on:
       - 'v*'
 
 permissions:
+  actions: read
   contents: write
 
 jobs:
@@ -45,6 +46,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Validate Windows signing configuration
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        env:
+          SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+          SIGNPATH_ORGANIZATION_ID: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          SIGNPATH_PROJECT_SLUG: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          SIGNPATH_SIGNING_POLICY_SLUG: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          SIGNPATH_ARTIFACT_CONFIGURATION_SLUG: ${{ vars.SIGNPATH_ARTIFACT_CONFIGURATION_SLUG }}
+        run: |
+          foreach ($name in @('SIGNPATH_API_TOKEN', 'SIGNPATH_ORGANIZATION_ID', 'SIGNPATH_PROJECT_SLUG', 'SIGNPATH_SIGNING_POLICY_SLUG', 'SIGNPATH_ARTIFACT_CONFIGURATION_SLUG')) {
+            if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name))) {
+              throw "Missing $name. Complete SignPath enrollment before releasing."
+            }
+          }
+
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -53,12 +70,71 @@ jobs:
       - name: Build release binary
         run: cargo build --locked --release --bins --target ${{ matrix.target }}
 
+      - name: Prepare Windows signing files
+        if: matrix.os == 'windows-latest'
+        id: windows-signing-files
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          Copy-Item 'target/${{ matrix.target }}/release/rusty-vault.exe' .
+          Copy-Item 'target/${{ matrix.target }}/release/rustyvault-bridge.exe' .
+          $version = (Get-Item rusty-vault.exe).VersionInfo.ProductVersion
+          if ([string]::IsNullOrWhiteSpace($version) -or "v$version" -cne $env:RELEASE_TAG) {
+            throw 'The release tag must match the Windows product version.'
+          }
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Upload Windows signing files
+        if: matrix.os == 'windows-latest'
+        id: unsigned-windows
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: windows-signing-input-${{ github.run_attempt }}
+          if-no-files-found: error
+          path: |
+            rusty-vault.exe
+            rustyvault-bridge.exe
+            browser-extension/install-native-host.ps1
+            browser-extension/install-brave.ps1
+
+      - name: Sign Windows files
+        if: matrix.os == 'windows-latest'
+        uses: signpath/github-action-submit-signing-request@a2c5b60d9c75f073142b653c354b632eedce097b # v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          artifact-configuration-slug: ${{ vars.SIGNPATH_ARTIFACT_CONFIGURATION_SLUG }}
+          github-artifact-id: ${{ steps.unsigned-windows.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 3600
+          output-artifact-directory: signed-windows
+          parameters: |
+            version: ${{ toJSON(steps.windows-signing-files.outputs.version) }}
+
+      - name: Verify Windows signatures
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          foreach ($file in @('rusty-vault.exe', 'rustyvault-bridge.exe', 'browser-extension/install-native-host.ps1', 'browser-extension/install-brave.ps1')) {
+            $path = Join-Path signed-windows $file
+            $signature = Get-AuthenticodeSignature -LiteralPath $path
+            if ($signature.Status -ne 'Valid' -or -not $signature.TimeStamperCertificate) {
+              throw "$file must have a valid timestamped Authenticode signature."
+            }
+            Write-Output "Verified $file"
+          }
+
       - name: Package Windows Archive
         if: matrix.os == 'windows-latest'
         shell: bash
         run: |
-          cp target/${{ matrix.target }}/release/${{ matrix.binary }} .
-          cp target/${{ matrix.target }}/release/rustyvault-bridge.exe .
+          cp signed-windows/rusty-vault.exe .
+          cp signed-windows/rustyvault-bridge.exe .
+          cp signed-windows/browser-extension/install-native-host.ps1 browser-extension/
+          cp signed-windows/browser-extension/install-brave.ps1 browser-extension/
           7z a "$ARCHIVE_NAME" ${{ matrix.binary }} rustyvault-bridge.exe README.md LICENSE DESIGN.md assets docs browser-extension
 
       - name: Package Unix Archive

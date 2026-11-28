@@ -15,8 +15,9 @@ submitted login forms on that exact origin, including on future visits.
 
 ## Install
 
-1. Build both Windows executables: `cargo build --release`.
-2. Run `powershell -ExecutionPolicy Bypass -File .\browser-extension\install-native-host.ps1`.
+1. Extract the Windows release archive, or build both executables from source:
+   `cargo build --release`.
+2. Run `powershell -File .\browser-extension\install-native-host.ps1`.
    The script writes separate Firefox and Chromium manifests in `native-hosts/` and registers
    them for the current Windows user in Firefox, Chrome, Edge and Brave.
 3. In Firefox, open `about:debugging#/runtime/this-firefox` and choose **Load Temporary Add-on**, selecting `manifest.json`. In Chrome, Edge or Brave, open the extensions page, turn on **Developer mode**, and select **Load unpacked**. Choose the `browser-extension` directory.
@@ -26,6 +27,14 @@ submitted login forms on that exact origin, including on future visits.
 5. Open the extension popup on a site, grant access for that HTTPS site, then
    choose a matching login. To save, submit a login on the site and choose **Save
    login** from the popup. Confirm the website and account in RustyVault.
+
+The v0.1.1 release and source-checkout scripts are unsigned. Windows release
+signing is planned after SignPath approval; see the
+[Code signing policy](../README.md#code-signing-policy). For a future signed
+release, verify the scripts' Authenticode signatures and use your normal
+PowerShell execution policy. Unsigned source scripts require a trusted development
+environment whose policy permits them; a signed release does not sign your local
+checkout.
 
 This unpacked extension has no store listing. Firefox's temporary add-on must be
 loaded again after Firefox restarts. Native host and settings
@@ -37,6 +46,30 @@ and `src/browser.rs`.
 
 
 Run extension checks using `npm test --prefix browser-extension`.
+
+## Uninstall
+
+Disable **Connect to the RustyVault extension** in the app, then lock and close
+RustyVault. Remove the extension from each browser's extensions page. From the
+same extracted release or source directory used for installation, run this in
+PowerShell to remove the current user's native-host registrations and generated
+manifests:
+
+```powershell
+foreach ($vendor in @('Mozilla', 'Google\Chrome', 'Microsoft\Edge', 'BraveSoftware\Brave-Browser')) {
+    $key = "HKCU:\Software\$vendor\NativeMessagingHosts\com.pranav256.rustyvault"
+    if (Test-Path -LiteralPath $key) {
+        Remove-Item -LiteralPath $key
+    }
+}
+if (Test-Path -LiteralPath '.\browser-extension\native-hosts') {
+    Remove-Item -LiteralPath '.\browser-extension\native-hosts' -Recurse
+}
+```
+
+You can then remove the extracted application files. These steps preserve your
+encrypted vault, backups and custom vault files; do not delete those files or
+RustyVault's OS data directory unless you also intend to erase your saved data.
 
 ## Browser coverage and limits
 

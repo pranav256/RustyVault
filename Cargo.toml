@@ -25,3 +25,6 @@ zxcvbn = "3.1"
 tempfile = "3.10"
 egui_extras = { version = "0.29", default-features = false, features = ["svg"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
+
+[target.'cfg(windows)'.build-dependencies]
+winresource = "0.1"
