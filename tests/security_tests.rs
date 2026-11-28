@@ -87,6 +87,37 @@ fn csv_rejects_missing_titles_unequal_records_and_excessive_rows() {
 }
 
 #[test]
+fn browser_csv_exports_preserve_credentials_notes_and_firefox_metadata() {
+    let chromium = b"name,url,username,password,note\r\nExample,https://example.test,  synthetic-user  ,\"  synthetic,secret  \",\"first line\nsecond line\"\r\n";
+    let entries = read_csv(chromium).unwrap();
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0].service, "Example");
+    assert_eq!(entries[0].username, "  synthetic-user  ");
+    assert_eq!(entries[0].password, "  synthetic,secret  ");
+    assert_eq!(entries[0].notes, "first line\nsecond line");
+    assert!(entries[0].fields.is_empty());
+
+    let firefox = b"url,username,password,httpRealm,formActionOrigin,guid,timeCreated,timeLastUsed,timePasswordChanged\r\nhttps://example.test, user ,\" secret,with comma \",Members,https://example.test/login,{synthetic-guid},123,456,789\r\n";
+    let entries = read_csv(firefox).unwrap();
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0].service, "https://example.test");
+    assert_eq!(entries[0].url, "https://example.test");
+    assert_eq!(entries[0].username, " user ");
+    assert_eq!(entries[0].password, " secret,with comma ");
+    assert_eq!(entries[0].fields.len(), 6);
+    assert!(entries[0]
+        .fields
+        .contains(&("httpRealm".into(), "Members".into())));
+    assert!(entries[0]
+        .fields
+        .contains(&("timePasswordChanged".into(), "789".into())));
+
+    assert!(read_csv(b"name,url,username,password\n,https://example.test,user,secret\n").is_err());
+    assert!(read_csv(b"url,username,password\n,user,secret\n").is_err());
+    assert!(read_csv(b"url,username,password\nhttps://example.test,user\n").is_err());
+}
+
+#[test]
 fn authenticated_encryption_rejects_every_byte_tamper_and_wrong_key() {
     let salt = [0x51; SALT_LEN];
     let key = crypto::derive_key("synthetic-correct-password", &salt).unwrap();

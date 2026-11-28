@@ -106,8 +106,10 @@ release artifacts and build metadata, not users' vault files or master passwords
 
 1. Choose and confirm a master passphrase with **at least 12 characters** and
    select **Create vault**. Existing vaults with shorter passwords remain unlockable.
-2. Select **New entry**, fill in the details and select **Save entry**.
+2. Select **Add password** (or press **Ctrl+N**), enter the website or account name, username/email and password, then select **Save password**. Optional details can be added later.
 3. On later launches, enter the master password and select **Unlock vault**.
+
+Use **Import from browser...** to bring in saved passwords from Brave, Chrome, Edge or Firefox. The guide opens the browser's password manager, explains CSV export and lets you review accounts before importing. The CSV is unencrypted; delete it after importing. Optional browser extension setup for future saves and fills is available in the same guide.
 
 There is no password recovery. Keep the master passphrase safe.
 The locked screen offers **Open another vault…** and **Create a new vault…**.

@@ -1,8 +1,10 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod appearance;
+mod browser_import;
 
 use appearance::{Palette, CONTROL_RADIUS, WINDOW_RADIUS};
+use browser_import::BrowserKind;
 use eframe::egui::{self, RichText, Vec2};
 use rusty_vault::{
     browser::{self, Request as BrowserRequest, Response as BrowserResponse},
@@ -91,6 +93,13 @@ fn main() -> eframe::Result<()> {
                             app.edit(e);
                         }
                     }
+                    Some("empty") => {
+                        app.vault.as_mut().unwrap().entries.clear();
+                        app.selected = None;
+                        app.analyze();
+                    }
+                    Some("new") => app.add_password(),
+                    Some("browser-import") => app.browser_import_open = true,
                     Some("locked") => app.lock(&cc.egui_ctx),
                     _ => {}
                 }
@@ -257,6 +266,7 @@ struct App {
     selected: Option<String>,
     reveal: bool,
     editing: Option<VaultEntry>,
+    editor_uses_email: bool,
     tags_input: String,
     expiry_input: String,
     error: Option<String>,
@@ -282,6 +292,11 @@ struct App {
     bounds: Vec<serde_json::Value>,
     browser: Option<browser::Server>,
     browser_failed: bool,
+    browser_kind: BrowserKind,
+    browser_import_open: bool,
+    browser_setup_path: Option<PathBuf>,
+    browser_import_pending: bool,
+    browser_last_seen: Option<Instant>,
 }
 
 impl App {
@@ -307,6 +322,7 @@ impl App {
             selected: None,
             reveal: false,
             editing: None,
+            editor_uses_email: false,
             tags_input: String::new(),
             expiry_input: String::new(),
             error: None,
@@ -332,6 +348,11 @@ impl App {
             bounds: Vec::new(),
             browser: None,
             browser_failed: false,
+            browser_kind: BrowserKind::default(),
+            browser_import_open: false,
+            browser_setup_path: None,
+            browser_import_pending: false,
+            browser_last_seen: None,
         };
         if demo {
             let mut vault = Vault::new();
@@ -438,6 +459,7 @@ impl App {
         }
     }
     fn edit(&mut self, entry: VaultEntry) {
+        self.editor_uses_email = entry.username.is_empty() && !entry.email.is_empty();
         self.tags_input = entry.tags.join(", ");
         self.expiry_input = entry
             .expires_at
@@ -447,6 +469,256 @@ impl App {
         self.error = None;
         self.reveal = false;
     }
+    fn add_password(&mut self) {
+        if self.editing.is_some() {
+            return;
+        }
+        let mut entry = VaultEntry::new("", "", "", "");
+        if let View::Group(group) = &self.view {
+            entry.category.clone_from(group);
+        }
+        self.view = View::All;
+        self.query.clear();
+        self.edit(entry);
+    }
+    fn password_actions(&mut self, ui: &mut egui::Ui) {
+        ui.add_enabled_ui(self.editing.is_none(), |ui| {
+            let add = ui
+                .add_sized([ui.available_width(), 44.0], primary(ui, "Add password"))
+                .on_hover_text("Add password (Ctrl+N)");
+            self.track("add-password", "Add password", "button", &add);
+            if add.clicked() {
+                self.add_password();
+            }
+            let import = ui.add_sized(
+                [ui.available_width(), 40.0],
+                egui::Button::new("Import from browser…"),
+            );
+            self.track("import-browser", "Import from browser", "button", &import);
+            if import.clicked() {
+                self.error = None;
+                self.browser_import_open = true;
+            }
+        });
+    }
+    fn keyboard_shortcuts(&mut self, ctx: &egui::Context) {
+        if ctx.input_mut(|i| i.consume_key(egui::Modifiers::CTRL, egui::Key::L)) {
+            self.lock(ctx);
+        }
+        if self.vault.is_none()
+            || self.editing.is_some()
+            || self.confirmation.is_some()
+            || self.pending_import.is_some()
+            || self.browser_import_open
+        {
+            return;
+        }
+        if ctx.input_mut(|i| i.consume_key(egui::Modifiers::CTRL, egui::Key::N)) {
+            self.add_password();
+        } else if ctx.input_mut(|i| i.consume_key(egui::Modifiers::CTRL, egui::Key::F)) {
+            ctx.memory_mut(|m| m.request_focus(egui::Id::new("search")));
+        }
+    }
+
+    fn choose_csv(&mut self, from_browser: bool) {
+        let result = if self.demo {
+            let mut entry = VaultEntry::new(
+                "Example imported account",
+                "demo@example.test",
+                "",
+                "SYNTHETIC-DEMO-ONLY",
+            );
+            entry.url = "https://example.test".into();
+            Some(Ok(vec![entry]))
+        } else {
+            rfd::FileDialog::new()
+                .add_filter("Password CSV", &["csv"])
+                .pick_file()
+                .map(|path| {
+                    read_small_file(&path, 16 * 1024 * 1024)
+                        .map_err(VaultError::from)
+                        .and_then(|bytes| vault::read_csv(&Zeroizing::new(bytes)))
+                })
+        };
+        if let Some(result) = result {
+            match result {
+                Ok(entries) => {
+                    self.pending_import = Some(entries);
+                    self.browser_import_pending = from_browser;
+                    self.browser_import_open = false;
+                    self.error = None;
+                }
+                Err(error) => self.error = Some(error.to_string()),
+            }
+        }
+    }
+
+    fn open_browser_password_manager(&mut self) {
+        if self.demo {
+            self.notice = format!(
+                "Demo: {} stays closed. Choose CSV to preview a synthetic import.",
+                self.browser_kind.label()
+            );
+        } else if let Err(error) = self.browser_kind.open_password_manager() {
+            self.error = Some(error.to_string());
+        } else {
+            self.error = None;
+            self.notice = format!("Opened {} password manager", self.browser_kind.label());
+        }
+    }
+
+    fn setup_browser_connection(&mut self) {
+        if self.demo {
+            self.browser_setup_path = Some(PathBuf::from("Demo extension folder"));
+            self.notice = "Demo: no browser files or registry settings were changed.".into();
+            self.error = None;
+            return;
+        }
+        match self.browser_kind.setup_connection() {
+            Ok(path) => {
+                self.browser_setup_path = Some(path);
+                self.error = None;
+                self.notice = format!(
+                    "Native host registered for {}. Load the extension next.",
+                    self.browser_kind.label()
+                );
+            }
+            Err(error) => self.error = Some(error.to_string()),
+        }
+    }
+
+    fn browser_status(&self) -> &'static str {
+        if self.demo {
+            "Demo: browser connections and system changes are simulated."
+        } else if !self
+            .vault
+            .as_ref()
+            .is_some_and(|vault| vault.settings.browser_enabled)
+        {
+            "Connection off"
+        } else if self.browser_failed {
+            "Connection could not start. Turn it off and on to retry."
+        } else if self.browser_last_seen.is_some() {
+            "The extension contacted this vault during this unlocked session."
+        } else if self.browser.is_some() {
+            "Listening locally. Waiting for the extension to contact this vault."
+        } else {
+            "Starting the local connection..."
+        }
+    }
+
+    fn browser_connection_controls(&mut self, ui: &mut egui::Ui) {
+        let colors = Palette::get(ui.ctx());
+        let mut enabled = self.vault.as_ref().unwrap().settings.browser_enabled;
+        let response = ui
+            .add_enabled_ui(cfg!(windows) || self.demo, |ui| {
+                checkbox(
+                    ui,
+                    &mut enabled,
+                    "Allow the extension while this vault is unlocked",
+                )
+            })
+            .inner;
+        self.track(
+            "browser-enable",
+            "Allow the browser extension",
+            "checkbox",
+            &response,
+        );
+        if response.changed() {
+            let mut next = self.vault.as_ref().unwrap().clone();
+            next.settings.browser_enabled = enabled;
+            if self.commit(next, "Browser connection settings saved") {
+                self.browser_failed = false;
+                self.browser_last_seen = None;
+            }
+        }
+        ui.label(self.browser_status());
+        ui.label(RichText::new("Enabling this does not install the extension or import passwords. Saving a submitted login still needs your approval in RustyVault.").small().color(colors.muted));
+    }
+
+    fn browser_import_dialog(&mut self, ctx: &egui::Context, focus_new: bool) {
+        if !self.browser_import_open {
+            return;
+        }
+        let colors = Palette::get(ctx);
+        let mut close = ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape));
+        egui::Window::new("Import passwords from your browser")
+            .order(egui::Order::Foreground).collapsible(false).resizable(false)
+            .anchor(egui::Align2::CENTER_CENTER, Vec2::ZERO).default_width(540.0)
+            .show(ctx, |ui| {
+                egui::ScrollArea::vertical().id_salt("browser-import-scroll")
+                    .max_height((ctx.screen_rect().height() - 220.0).clamp(240.0, 480.0))
+                    .show(ui, |ui| {
+                        ui.label("Bring saved passwords into this vault using your browser's password export.");
+                        ui.horizontal(|ui| {
+                            let label = ui.label("Browser");
+                            let selected = self.browser_kind;
+                            let response = egui::ComboBox::from_id_salt("browser-kind")
+                                .selected_text(self.browser_kind.label()).show_ui(ui, |ui| {
+                                    for browser in BrowserKind::ALL {
+                                        ui.selectable_value(&mut self.browser_kind, browser, browser.label());
+                                    }
+                                }).response.labelled_by(label.id);
+                            self.track("browser-kind", "Browser", "combobox", &response);
+                            if self.browser_kind != selected { self.browser_setup_path = None; }
+                        });
+                        ui.add_space(8.0);
+                        ui.label(RichText::new("1. Open your browser's password manager").strong());
+                        let open = ui.button(format!("Open {} password manager", self.browser_kind.label()));
+                        self.track("browser-open-manager", "Open browser password manager", "button", &open);
+                        if open.clicked() { self.open_browser_password_manager(); }
+                        ui.label(RichText::new("2. Export passwords to a CSV file").strong());
+                        ui.label(self.browser_kind.export_instructions());
+                        ui.label(RichText::new("Your browser may ask for your Windows password or device authentication.").small().color(colors.muted));
+                        ui.label(RichText::new("3. Choose the exported file, then review it").strong());
+                        let choose = ui.add_sized([ui.available_width(), 40.0], primary(ui, "Choose exported CSV..."));
+                        self.track("browser-choose-csv", "Choose exported CSV", "button", &choose);
+                        if choose.clicked() { self.choose_csv(true); }
+                        ui.label(RichText::new("The CSV contains readable passwords. Delete it after importing, including copies in Downloads and the Recycle Bin.").small().color(colors.danger));
+                        ui.add_space(8.0);
+                        egui::CollapsingHeader::new("Optional: save and fill future logins")
+                            .id_salt("browser-connection-setup").show(ui, |ui| {
+                                ui.label("Set up the RustyVault extension separately for future saves and fills.");
+                                let setup = ui.add_enabled(cfg!(windows) || self.demo, egui::Button::new("Register browser connection"));
+                                self.track("browser-setup-native", "Register browser connection", "button", &setup);
+                                if setup.clicked() { self.setup_browser_connection(); }
+                                if let Some(path) = &self.browser_setup_path {
+                                    ui.label(RichText::new("Native host registered. Load the extension next:").strong());
+                                    ui.label(path.to_string_lossy().as_ref());
+                                    ui.label(match self.browser_kind {
+                                        BrowserKind::Firefox => "In Firefox, open about:debugging#/runtime/this-firefox, choose Load Temporary Add-on, then select manifest.json in the folder above. This temporary add-on must be loaded again after restarting Firefox.",
+                                        BrowserKind::Brave => "In Brave, open brave://extensions, turn on Developer mode, choose Load unpacked, then select the folder above.",
+                                        BrowserKind::Chrome => "In Chrome, open chrome://extensions, turn on Developer mode, choose Load unpacked, then select the folder above.",
+                                        BrowserKind::Edge => "In Edge, open edge://extensions, turn on Developer mode, choose Load unpacked, then select the folder above.",
+                                    });
+                                }
+                                if !cfg!(windows) && !self.demo {
+                                    ui.label("Automatic extension setup currently supports Windows. CSV import is available here.");
+                                }
+                                self.browser_connection_controls(ui);
+                            });
+                        self.message(ui);
+                        if self.demo && !self.notice.is_empty() {
+                            ui.label(RichText::new(&self.notice).small().color(colors.muted));
+                        }
+                    });
+                ui.add_space(12.0);
+                let response = ui.add_sized([88.0, 36.0], egui::Button::new("Close"));
+                self.track("browser-close", "Close browser import", "button", &response);
+                close |= response.clicked();
+                if focus_new { response.request_focus(); }
+            });
+        if close {
+            self.browser_import_open = false;
+        }
+        if !self.browser_import_open && self.pending_import.is_none() {
+            if let Some(id) = self.dialog_focus.take().flatten() {
+                ctx.memory_mut(|memory| memory.request_focus(id));
+            }
+        }
+    }
+
     fn clear_clipboard(&mut self) {
         if let Some((text, _)) = self.clipboard.take() {
             if let Ok(mut cb) = arboard::Clipboard::new() {
@@ -471,6 +743,10 @@ impl App {
     fn lock(&mut self, ctx: &egui::Context) {
         self.browser = None;
         self.browser_failed = false;
+        self.browser_last_seen = None;
+        self.browser_import_open = false;
+        self.browser_import_pending = false;
+        self.browser_setup_path = None;
         ctx.memory_mut(|m| m.data.clear());
         self.clear_clipboard();
         self.vault = None;
@@ -768,7 +1044,10 @@ impl App {
             .resizable(false)
             .frame(egui::Frame::none().fill(colors.surface).inner_margin(16.0))
             .show(ctx, |ui| {
-                if self.confirmation.is_some() || self.pending_import.is_some() {
+                if self.confirmation.is_some()
+                    || self.pending_import.is_some()
+                    || self.browser_import_open
+                {
                     ui.disable();
                 }
                 ui.horizontal(|ui| {
@@ -782,6 +1061,8 @@ impl App {
                     );
                     ui.label(RichText::new("RustyVault").font(display(20.0)));
                 });
+                ui.add_space(if compact { 8.0 } else { 16.0 });
+                self.password_actions(ui);
                 ui.add_space(if compact { 8.0 } else { 16.0 });
                 ui.label(RichText::new("My vault").small().color(colors.muted));
                 ui.add_space(4.0);
@@ -901,21 +1182,13 @@ impl App {
                     .inner_margin(16.0),
             )
             .show(ctx, |ui| {
-                if self.confirmation.is_some() || self.pending_import.is_some() {
+                if self.confirmation.is_some()
+                    || self.pending_import.is_some()
+                    || self.browser_import_open
+                {
                     ui.disable();
                 }
-                ui.horizontal(|ui| {
-                    ui.label(RichText::new(self.view.title()).font(display(20.0)));
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if self.view != View::Trash
-                            && ui
-                                .add_enabled(self.editing.is_none(), egui::Button::new("New entry"))
-                                .clicked()
-                        {
-                            self.edit(VaultEntry::new("", "", "", ""));
-                        }
-                    });
-                });
+                ui.label(RichText::new(self.view.title()).font(display(20.0)));
                 ui.add_space(16.0);
                 let r = ui
                     .scope(|ui| {
@@ -949,10 +1222,6 @@ impl App {
                         });
                         if !self.query.is_empty() && ui.button("Clear search").clicked() {
                             self.query.clear();
-                        } else if self.view != View::Trash
-                            && ui.button("Add your first entry").clicked()
-                        {
-                            self.edit(VaultEntry::new("", "", "", ""));
                         }
                     }
                     for (index, entry) in entries.iter().enumerate() {
@@ -1103,10 +1372,51 @@ impl App {
         let colors = Palette::get(ui.ctx());
         let Some(entry) = self.selected_entry() else {
             ui.add_space(64.0);
-            ui.heading("Select an entry");
+            let empty = !self
+                .vault
+                .as_ref()
+                .unwrap()
+                .entries
+                .iter()
+                .any(|entry| entry.deleted_at.is_none());
+            ui.heading(if empty {
+                "Your passwords, in one place"
+            } else {
+                "No entry selected"
+            });
             ui.label(
-                RichText::new("View account details, or add your first entry.").color(colors.muted),
+                RichText::new(if empty {
+                    "Add your first password or bring your saved passwords from a browser."
+                } else {
+                    "Choose an entry, add a password, or import from your browser."
+                })
+                .color(colors.muted),
             );
+            ui.add_space(20.0);
+            ui.add_enabled_ui(self.view != View::Trash, |ui| {
+                let add = ui.add_sized(
+                    [ui.available_width().min(360.0), 44.0],
+                    primary(ui, "Add password"),
+                );
+                self.track("empty-add-password", "Add password", "button", &add);
+                if add.clicked() {
+                    self.add_password();
+                }
+                let import = ui.add_sized(
+                    [ui.available_width().min(360.0), 40.0],
+                    egui::Button::new("Import from browser…"),
+                );
+                self.track(
+                    "empty-import-browser",
+                    "Import from browser",
+                    "button",
+                    &import,
+                );
+                if import.clicked() {
+                    self.error = None;
+                    self.browser_import_open = true;
+                }
+            });
             return;
         };
         ui.horizontal(|ui| {
@@ -1469,46 +1779,56 @@ impl App {
     fn editor(&mut self, ui: &mut egui::Ui) {
         let colors = Palette::get(ui.ctx());
         let mut entry = self.editing.take().unwrap();
-        ui.horizontal(|ui| {
-            ui.heading(
-                if self
-                    .vault
-                    .as_ref()
-                    .unwrap()
-                    .entries
-                    .iter()
-                    .any(|e| e.id == entry.id)
-                {
-                    "Edit entry"
-                } else {
-                    "New entry"
-                },
-            );
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui.button("Cancel").clicked() {
-                    self.confirmation = Some(Confirm::Discard);
-                }
-            });
+        let is_new = !self
+            .vault
+            .as_ref()
+            .unwrap()
+            .entries
+            .iter()
+            .any(|e| e.id == entry.id);
+        let note = entry.kind == "Secure note";
+        ui.heading(if note {
+            "Secure note"
+        } else if is_new {
+            "Add password"
+        } else {
+            "Edit password"
         });
         ui.label(
-            RichText::new("Changes are saved only when you choose Save entry.").color(colors.muted),
+            RichText::new("Save when you are ready. Optional details can wait.")
+                .color(colors.muted),
         );
-        ui.add_space(16.0);
-        let mut saved = false;
+        ui.add_space(12.0);
+        let mut save = false;
+        ui.horizontal(|ui| {
+            let label = if note { "Save note" } else { "Save password" };
+            let response = ui.add_sized([144.0, 40.0], primary(ui, label));
+            self.track("save-entry", label, "button", &response);
+            save = response.clicked();
+            let cancel = ui.add_sized([88.0, 40.0], egui::Button::new("Cancel"));
+            self.track("cancel-entry", "Cancel", "button", &cancel);
+            if cancel.clicked() {
+                self.confirmation = Some(Confirm::Discard);
+            }
+        });
+        self.message(ui);
+        ui.add_space(12.0);
+        ui.separator();
         egui::ScrollArea::vertical()
             .id_salt("editor-scroll")
             .show(ui, |ui| {
-                form_field(ui, "Title", &mut entry.service, false);
                 ui.horizontal(|ui| {
-                    let type_label = ui.label("Type");
+                    let label = ui.label("Type");
                     egui::ComboBox::from_id_salt("kind")
                         .selected_text(if entry.kind.is_empty() {
-                            "Login"
+                            "Password"
+                        } else if entry.kind == "Login" {
+                            "Password"
                         } else {
                             &entry.kind
                         })
                         .show_ui(ui, |ui| {
-                            ui.selectable_value(&mut entry.kind, "Login".into(), "Login");
+                            ui.selectable_value(&mut entry.kind, "Login".into(), "Password");
                             ui.selectable_value(
                                 &mut entry.kind,
                                 "Secure note".into(),
@@ -1516,11 +1836,29 @@ impl App {
                             );
                         })
                         .response
-                        .labelled_by(type_label.id);
+                        .labelled_by(label.id);
                 });
+                form_field(
+                    ui,
+                    if entry.kind == "Secure note" {
+                        "Name"
+                    } else {
+                        "Website or name"
+                    },
+                    &mut entry.service,
+                    false,
+                );
                 if entry.kind != "Secure note" {
-                    form_field(ui, "Username", &mut entry.username, false);
-                    form_field(ui, "Email", &mut entry.email, false);
+                    ui.label(
+                        RichText::new("Use example.com or an account name.")
+                            .small()
+                            .color(colors.muted),
+                    );
+                    if self.editor_uses_email {
+                        form_field(ui, "Username or email", &mut entry.email, false);
+                    } else {
+                        form_field(ui, "Username or email", &mut entry.username, false);
+                    }
                     form_field(ui, "Password", &mut entry.password, !self.reveal);
                     ui.horizontal(|ui| {
                         checkbox(ui, &mut self.reveal, "Show password");
@@ -1528,123 +1866,153 @@ impl App {
                             entry.password = generate_password(&self.config);
                         }
                     });
+                } else {
+                    let label = ui.label("Note");
+                    ui.add(
+                        egui::TextEdit::multiline(&mut entry.notes)
+                            .margin(INPUT_PADDING)
+                            .desired_rows(6)
+                            .desired_width(f32::INFINITY),
+                    )
+                    .labelled_by(label.id);
                 }
-                form_field(ui, "Website · https://…", &mut entry.url, false);
-                form_field(ui, "Group", &mut entry.category, false);
-                form_field(
-                    ui,
-                    "Tags · separated by commas",
-                    &mut self.tags_input,
-                    false,
-                );
-                form_field(
-                    ui,
-                    "Expiry · YYYY-MM-DD (optional)",
-                    &mut self.expiry_input,
-                    false,
-                );
-                let notes_label = ui.label("Notes");
-                ui.add(
-                    egui::TextEdit::multiline(&mut entry.notes)
-                        .margin(INPUT_PADDING)
-                        .desired_rows(4)
-                        .desired_width(f32::INFINITY),
-                )
-                .labelled_by(notes_label.id);
                 ui.add_space(8.0);
-                checkbox(ui, &mut entry.favorite, "Add to favorites");
-                egui::CollapsingHeader::new("Custom fields").show(ui, |ui| {
-                    let mut remove = None;
-                    for (i, (name, value)) in entry.fields.iter_mut().enumerate() {
-                        ui.push_id(i, |ui| {
-                            ui.columns(2, |columns| {
-                                form_field(&mut columns[0], "Field name", name, false);
-                                form_field(&mut columns[1], "Field value", value, true);
-                            });
-                            if ui.button("Remove field").clicked() {
-                                remove = Some(i);
+                egui::CollapsingHeader::new("Optional details")
+                    .id_salt((&entry.id, "optional-details"))
+                    .show(ui, |ui| {
+                        form_field(ui, "Website URL (optional)", &mut entry.url, false);
+                        if self.editor_uses_email {
+                            form_field(
+                                ui,
+                                "Separate username (optional)",
+                                &mut entry.username,
+                                false,
+                            );
+                        } else {
+                            form_field(ui, "Separate email (optional)", &mut entry.email, false);
+                        }
+                        form_field(ui, "Group", &mut entry.category, false);
+                        form_field(ui, "Tags (comma separated)", &mut self.tags_input, false);
+                        form_field(
+                            ui,
+                            "Expiry (YYYY-MM-DD, optional)",
+                            &mut self.expiry_input,
+                            false,
+                        );
+                        if entry.kind != "Secure note" {
+                            let label = ui.label("Notes");
+                            ui.add(
+                                egui::TextEdit::multiline(&mut entry.notes)
+                                    .margin(INPUT_PADDING)
+                                    .desired_rows(4)
+                                    .desired_width(f32::INFINITY),
+                            )
+                            .labelled_by(label.id);
+                        }
+                        checkbox(ui, &mut entry.favorite, "Add to favorites");
+                        egui::CollapsingHeader::new("Custom fields").show(ui, |ui| {
+                            let mut remove = None;
+                            for (index, (name, value)) in entry.fields.iter_mut().enumerate() {
+                                ui.push_id(index, |ui| {
+                                    ui.columns(2, |columns| {
+                                        form_field(&mut columns[0], "Field name", name, false);
+                                        form_field(&mut columns[1], "Field value", value, true);
+                                    });
+                                    if ui.button("Remove field").clicked() {
+                                        remove = Some(index);
+                                    }
+                                });
+                            }
+                            if let Some(index) = remove {
+                                entry.fields.remove(index);
+                            }
+                            if ui.button("Add field").clicked() {
+                                entry.fields.push((String::new(), String::new()));
                             }
                         });
+                        egui::CollapsingHeader::new("Attachments (up to 5 MB each)").show(
+                            ui,
+                            |ui| {
+                                let mut remove = None;
+                                for (index, attachment) in entry.attachments.iter().enumerate() {
+                                    ui.horizontal(|ui| {
+                                        ui.label(&attachment.name);
+                                        if ui.button("Remove").clicked() {
+                                            remove = Some(index);
+                                        }
+                                    });
+                                }
+                                if let Some(index) = remove {
+                                    entry.attachments.remove(index);
+                                }
+                                if ui
+                                    .add_enabled(!self.demo, egui::Button::new("Attach file..."))
+                                    .clicked()
+                                {
+                                    if let Some(path) = rfd::FileDialog::new().pick_file() {
+                                        match read_small_file(&path, 5 * 1024 * 1024) {
+                                            Ok(bytes) => entry.attachments.push(Attachment {
+                                                name: path
+                                                    .file_name()
+                                                    .unwrap_or_default()
+                                                    .to_string_lossy()
+                                                    .into_owned(),
+                                                bytes,
+                                            }),
+                                            Err(error) => self.error = Some(error.to_string()),
+                                        }
+                                    }
+                                }
+                            },
+                        );
+                    });
+            });
+        let mut saved = false;
+        if save {
+            if is_new && entry.kind != "Secure note" && entry.url.is_empty() {
+                if let Some(website) = inferred_website(&entry.service) {
+                    entry.url = website;
+                }
+            }
+            entry.tags = self
+                .tags_input
+                .split(',')
+                .map(str::trim)
+                .filter(|tag| !tag.is_empty())
+                .map(String::from)
+                .collect();
+            let expiry = if self.expiry_input.trim().is_empty() {
+                Ok(None)
+            } else {
+                chrono::NaiveDate::parse_from_str(self.expiry_input.trim(), "%Y-%m-%d")
+                    .map(|date| Some(date.and_hms_opt(23, 59, 59).unwrap().and_utc()))
+                    .map_err(|_| VaultError::InvalidData("Expiry must use YYYY-MM-DD".into()))
+            };
+            match expiry.and_then(|date| {
+                entry.expires_at = date;
+                entry.validate()
+            }) {
+                Ok(()) => {
+                    let mut next = self.vault.as_ref().unwrap().clone();
+                    if !next.update_entry(entry.clone()) {
+                        next.add_entry(entry.clone());
                     }
-                    if let Some(i) = remove {
-                        entry.fields.remove(i);
-                    }
-                    if ui.button("Add field").clicked() {
-                        entry.fields.push((String::new(), String::new()));
-                    }
-                });
-                egui::CollapsingHeader::new("Attachments · up to 5 MB each").show(ui, |ui| {
-                    let mut remove = None;
-                    for (i, a) in entry.attachments.iter().enumerate() {
-                        ui.horizontal(|ui| {
-                            ui.label(&a.name);
-                            if ui.button("Remove").clicked() {
-                                remove = Some(i);
-                            }
-                        });
-                    }
-                    if let Some(i) = remove {
-                        entry.attachments.remove(i);
-                    }
-                    if ui
-                        .add_enabled(!self.demo, egui::Button::new("Attach file…"))
-                        .clicked()
-                    {
-                        if let Some(path) = rfd::FileDialog::new().pick_file() {
-                            match read_small_file(&path, 5 * 1024 * 1024) {
-                                Ok(bytes) => entry.attachments.push(Attachment {
-                                    name: path
-                                        .file_name()
-                                        .unwrap_or_default()
-                                        .to_string_lossy()
-                                        .into_owned(),
-                                    bytes,
-                                }),
-                                Err(e) => self.error = Some(e.to_string()),
-                            }
-                        }
-                    }
-                });
-                self.message(ui);
-                ui.add_space(16.0);
-                let r = ui.add(primary(ui, "Save entry"));
-                self.track("save-entry", "Save entry", "button", &r);
-                if r.clicked() {
-                    entry.tags = self
-                        .tags_input
-                        .split(',')
-                        .map(str::trim)
-                        .filter(|s| !s.is_empty())
-                        .map(String::from)
-                        .collect();
-                    let expiry = if self.expiry_input.trim().is_empty() {
-                        Ok(None)
-                    } else {
-                        chrono::NaiveDate::parse_from_str(self.expiry_input.trim(), "%Y-%m-%d")
-                            .map(|d| Some(d.and_hms_opt(23, 59, 59).unwrap().and_utc()))
-                            .map_err(|_| {
-                                VaultError::InvalidData("Expiry must use YYYY-MM-DD".into())
-                            })
-                    };
-                    match expiry.and_then(|date| {
-                        entry.expires_at = date;
-                        entry.validate()
-                    }) {
-                        Ok(()) => {
-                            let mut next = self.vault.as_ref().unwrap().clone();
-                            if !next.update_entry(entry.clone()) {
-                                next.add_entry(entry.clone());
-                            }
-                            if self.commit(next, "Entry saved") {
-                                self.selected = Some(entry.id.clone());
-                                self.reveal = false;
-                                saved = true;
-                            }
-                        }
-                        Err(e) => self.error = Some(e.to_string()),
+                    if self.commit(
+                        next,
+                        if entry.kind == "Secure note" {
+                            "Secure note saved"
+                        } else {
+                            "Password saved"
+                        },
+                    ) {
+                        self.selected = Some(entry.id.clone());
+                        self.reveal = false;
+                        saved = true;
                     }
                 }
-            });
+                Err(error) => self.error = Some(error.to_string()),
+            }
+        }
         if !saved {
             self.editing = Some(entry);
         }
@@ -1841,6 +2209,7 @@ impl App {
         if !enabled {
             self.browser = None;
             self.browser_failed = false;
+            self.browser_last_seen = None;
             return;
         }
         if self.browser.is_none() && !self.browser_failed {
@@ -1859,9 +2228,11 @@ impl App {
             }
         }
         if let Some(incoming) = self.browser.as_ref().and_then(|server| server.try_recv()) {
+            self.browser_last_seen = Some(Instant::now());
             let response = if self.editing.is_some()
                 || self.confirmation.is_some()
                 || self.pending_import.is_some()
+                || self.browser_import_open
             {
                 BrowserResponse::error(
                     "Finish the current edit or dialog in RustyVault, then try again",
@@ -1889,23 +2260,11 @@ impl App {
         ui.add_space(24.0);
         egui::ScrollArea::vertical().max_width(760.0).show(ui, |ui| {
             settings_section(ui, "Browser connection", |ui| {
-
-            #[cfg(windows)]
-            {
-                let mut enabled = self.vault.as_ref().unwrap().settings.browser_enabled;
-                if ui.add_enabled_ui(!self.demo, |ui| checkbox(ui, &mut enabled, "Connect to the RustyVault extension")).inner.changed() {
-                    let mut next = self.vault.as_ref().unwrap().clone();
-                    next.settings.browser_enabled = enabled;
-                    if self.commit(next, "Browser connection settings saved") { self.browser_failed = false; }
-                }
-                ui.label(RichText::new(if self.demo { "Browser connections are disabled in demo mode." } else { "Use while this vault is unlocked. Choose a login in Firefox, Chrome, Edge, or Brave to fill it; approve submitted logins in RustyVault." }).small().color(colors.muted));
-                ui.label(if self.browser.is_some() { "Connection ready" } else { "Connection off" });
-            ui.label(RichText::new("Set up the extension for Firefox, Chrome, Edge, or Brave on Windows. See browser-extension/README.md.").small().color(colors.muted));
-            }
-            #[cfg(not(windows))]
-            ui.label(RichText::new("Native browser connection setup currently supports Windows.").small().color(colors.muted));
-
-
+                let import = ui.button("Import from browser...");
+                self.track("settings-import-browser", "Import from browser", "button", &import);
+                if import.clicked() { self.browser_import_open = true; self.error = None; }
+                ui.label(RichText::new("Use your browser's CSV export for existing passwords. The import guide also includes extension setup for future saves and fills.").small().color(colors.muted));
+                self.browser_connection_controls(ui);
             });
             settings_section(ui, "Appearance", |ui| {
 
@@ -1938,7 +2297,7 @@ ui.add_space(8.0);egui::Grid::new("security-timing").num_columns(2).spacing([24.
             });
             settings_section(ui, "Backups and import", |ui| {
 ui.label(RichText::new("The previous encrypted file is kept as vault.enc.bak after every save.").color(colors.muted));ui.horizontal_wrapped(|ui|{if ui.add_enabled(!self.demo,egui::Button::new("Encrypted backup…")).clicked(){if let Some(path)=rfd::FileDialog::new().add_filter("Encrypted vault",&["enc"]).set_file_name("rustyvault-backup.enc").save_file(){if let Err(e)=self.check_export_path(&path).and_then(|_|self.check_export_path(&path.with_extension("enc.bak"))){self.error=Some(e.to_string());}else if let Some(key)=&self.key{match self.vault.as_ref().unwrap().save_to_file(&path,key){Ok(())=>self.notice="Encrypted backup saved".into(),Err(e)=>self.error=Some(e.to_string())}}else{self.error=Some("Backups are unavailable in demo mode".into());}}}
-                if ui.add_enabled(!self.demo,egui::Button::new("Import CSV…")).clicked(){if let Some(path)=rfd::FileDialog::new().add_filter("CSV",&["csv"]).pick_file(){match read_small_file(&path,16*1024*1024).map_err(VaultError::from).and_then(|b|vault::read_csv(&Zeroizing::new(b))){Ok(entries)=>self.pending_import=Some(entries),Err(e)=>self.error=Some(e.to_string())}}}
+                if ui.button("Import CSV...").clicked() { self.choose_csv(false); }
                 if ui.add_enabled(!self.demo,egui::Button::new("Import legacy emails.txt…")).clicked(){if let Some(path)=rfd::FileDialog::new().add_filter("Legacy text",&["txt"]).pick_file(){let mut imported=Vault::new();match imported.import_legacy_txt(&path){Ok(_)=>self.pending_import=Some(imported.entries),Err(e)=>self.error=Some(e.to_string())}}}
                 if ui.add_enabled(!self.demo,egui::Button::new("Export plaintext CSV…")).clicked(){self.confirmation=Some(Confirm::Export);}
             });ui.add_space(8.0);ui.label(RichText::new(self.path.to_string_lossy()).small().color(colors.muted));
@@ -1952,11 +2311,15 @@ form_field(ui,"Current master password",&mut self.master,true);form_field(ui,"Ne
         });
     }
     fn dialogs(&mut self, ctx: &egui::Context) {
-        if (self.confirmation.is_some() || self.pending_import.is_some())
-            && self.dialog_focus.is_none()
+        let focus_new = self.dialog_focus.is_none();
+        if (self.confirmation.is_some()
+            || self.pending_import.is_some()
+            || self.browser_import_open)
+            && focus_new
         {
             self.dialog_focus = Some(ctx.memory(|m| m.focused()));
         }
+        self.browser_import_dialog(ctx, focus_new);
         if let Some(action) = self.confirmation.take() {
             let mut confirm = false;
             let mut cancel =
@@ -2078,6 +2441,7 @@ form_field(ui,"Current master password",&mut self.master,true);form_field(ui,"Ne
                 ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape));
             egui::Window::new("Review import").order(egui::Order::Foreground).collapsible(false).resizable(false).anchor(egui::Align2::CENTER_CENTER,Vec2::ZERO).default_width(440.0).show(ctx,|ui|{
                 ui.label(format!("{} entries will be added to your current vault. Existing entries are kept.",entries.len()));
+                if self.browser_import_pending { ui.label(RichText::new("After importing, delete the exported plaintext CSV, including any extra copies.").color(Palette::get(ui.ctx()).danger)); }
                 egui::ScrollArea::vertical().max_height(240.0).show(ui,|ui|{for entry in entries.iter().take(50){ui.label(format!("{} · {}",entry.service,entry.username_or_email()));}});
                 if entries.len()>50{ui.label(format!("And {} more entries",entries.len()-50));}
                 ui.add_space(16.0);
@@ -2094,13 +2458,22 @@ form_field(ui,"Current master password",&mut self.master,true);form_field(ui,"Ne
             if confirm {
                 let mut next = self.vault.as_ref().unwrap().clone();
                 next.entries.extend(entries.clone());
-                if !self.commit(next, "Import completed") {
+                let message = if self.browser_import_pending {
+                    format!(
+                        "Imported {} entries. Delete the exported plaintext CSV.",
+                        entries.len()
+                    )
+                } else {
+                    format!("Imported {} entries", entries.len())
+                };
+                if !self.commit(next, &message) {
                     self.pending_import = Some(entries);
                 }
             } else if !cancel {
                 self.pending_import = Some(entries);
             }
             if self.pending_import.is_none() {
+                self.browser_import_pending = false;
                 if let Some(id) = self.dialog_focus.take().flatten() {
                     ctx.memory_mut(|m| m.request_focus(id));
                 }
@@ -2156,15 +2529,7 @@ impl eframe::App for App {
             {
                 self.lock(ctx);
             }
-            if ctx.input_mut(|i| i.consume_key(egui::Modifiers::CTRL, egui::Key::L)) {
-                self.lock(ctx);
-            }
-            if self.confirmation.is_none()
-                && self.pending_import.is_none()
-                && ctx.input_mut(|i| i.consume_key(egui::Modifiers::CTRL, egui::Key::F))
-            {
-                ctx.memory_mut(|m| m.request_focus(egui::Id::new("search")));
-            }
+            self.keyboard_shortcuts(ctx);
         }
         self.browser_requests(ctx);
         egui::TopBottomPanel::bottom("status")
@@ -2193,7 +2558,9 @@ impl eframe::App for App {
                             "Dark mode"
                         };
                         let response = ui.add_enabled(
-                            self.confirmation.is_none() && self.pending_import.is_none(),
+                            self.confirmation.is_none()
+                                && self.pending_import.is_none()
+                                && !self.browser_import_open,
                             egui::Button::new(label),
                         );
                         self.track("theme-toggle", label, "button", &response);
@@ -2227,7 +2594,10 @@ impl eframe::App for App {
                         },
                     ))
                     .show(ctx, |ui| {
-                        if self.confirmation.is_some() || self.pending_import.is_some() {
+                        if self.confirmation.is_some()
+                            || self.pending_import.is_some()
+                            || self.browser_import_open
+                        {
                             ui.disable();
                         }
                         if self.editing.is_some() {
@@ -2273,6 +2643,8 @@ impl eframe::App for App {
                             "Confirmation"
                         } else if self.pending_import.is_some() {
                             "Import preview"
+                        } else if self.browser_import_open {
+                            "Browser import"
                         } else {
                             self.view.title()
                         };
@@ -2354,6 +2726,31 @@ fn form_field(ui: &mut egui::Ui, label: &str, value: &mut String, secret: bool) 
         .labelled_by(label.id);
     });
 }
+fn inferred_website(name: &str) -> Option<String> {
+    let name = name.trim();
+    if name.is_empty() || name.chars().any(char::is_whitespace) {
+        return None;
+    }
+    let explicit_url = name.starts_with("https://") || name.starts_with("http://");
+    if !explicit_url && (name.contains("://") || !name.contains('.')) {
+        return None;
+    }
+    let candidate = if explicit_url {
+        name.to_owned()
+    } else {
+        format!("https://{name}")
+    };
+    let url = url::Url::parse(&candidate).ok()?;
+    if !matches!(url.scheme(), "http" | "https")
+        || url.host_str().is_none()
+        || !url.username().is_empty()
+        || url.password().is_some()
+    {
+        return None;
+    }
+    Some(url.to_string())
+}
+
 fn read_small_file(path: &Path, limit: u64) -> std::io::Result<Vec<u8>> {
     use std::io::Read;
     let file = std::fs::File::open(path)?;
@@ -2629,5 +3026,227 @@ mod app_tests {
         app.unlock();
         assert!(app.vault.is_some());
         assert_eq!(std::fs::read(path).unwrap(), b"personal vault sentinel");
+    }
+
+    fn fragment_frame(app: &mut App, ctx: &egui::Context, events: Vec<egui::Event>, screen: &str) {
+        app.bounds.clear();
+        let _ = ctx.run(
+            egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::vec2(900.0, 650.0),
+                )),
+                events,
+                ..Default::default()
+            },
+            |ctx| {
+                if screen == "dialogs" {
+                    app.dialogs(ctx);
+                } else {
+                    egui::CentralPanel::default().show(ctx, |ui| match screen {
+                        "actions" => app.password_actions(ui),
+                        "editor" => app.editor(ui),
+                        _ => unreachable!(),
+                    });
+                }
+            },
+        );
+    }
+
+    fn click_fragment(app: &mut App, ctx: &egui::Context, screen: &str, id: &str) {
+        for _ in 0..2 {
+            fragment_frame(app, ctx, vec![], screen);
+        }
+        let rect = &app
+            .bounds
+            .iter()
+            .find(|value| value["id"] == id)
+            .expect("Tracked control missing")["rect"];
+        let pos = egui::pos2(
+            (rect["x"].as_f64().unwrap() + rect["width"].as_f64().unwrap() / 2.0) as f32,
+            (rect["y"].as_f64().unwrap() + rect["height"].as_f64().unwrap() / 2.0) as f32,
+        );
+        assert!(
+            (0.0..650.0).contains(&pos.y),
+            "Control is outside the minimum viewport"
+        );
+        for pressed in [true, false] {
+            fragment_frame(
+                app,
+                ctx,
+                vec![
+                    egui::Event::PointerMoved(pos),
+                    egui::Event::PointerButton {
+                        pos,
+                        button: egui::PointerButton::Primary,
+                        pressed,
+                        modifiers: egui::Modifiers::NONE,
+                    },
+                ],
+                screen,
+            );
+        }
+    }
+
+    #[test]
+    fn add_password_action_preserves_group_and_existing_draft() {
+        let ctx = egui::Context::default();
+        theme(&ctx, true);
+        let mut app = App::new(true, None);
+        app.capture = Some("unused-demo-capture".into());
+        app.view = View::Group("Work".into());
+        app.query = "old filter".into();
+        click_fragment(&mut app, &ctx, "actions", "add-password");
+        assert!(app.view == View::All && app.query.is_empty());
+        assert_eq!(app.editing.as_ref().unwrap().category, "Work");
+        app.editing.as_mut().unwrap().service = "Unsaved draft".into();
+        click_fragment(&mut app, &ctx, "actions", "add-password");
+        assert_eq!(app.editing.as_ref().unwrap().service, "Unsaved draft");
+    }
+
+    #[test]
+    fn short_password_form_saves_and_infers_only_safe_websites() {
+        for (input, expected) in [
+            ("example.com", Some("https://example.com/")),
+            (
+                "https://example.com/login",
+                Some("https://example.com/login"),
+            ),
+            ("Local account", None),
+            ("javascript:alert(1)", None),
+            ("https://name:secret@example.com", None),
+        ] {
+            assert_eq!(inferred_website(input).as_deref(), expected);
+        }
+        let ctx = egui::Context::default();
+        theme(&ctx, true);
+        let mut app = App::new(true, None);
+        app.capture = Some("unused-demo-capture".into());
+        app.add_password();
+        let entry = app.editing.as_mut().unwrap();
+        entry.service = "example.test".into();
+        entry.username = "demo".into();
+        entry.password = "SYNTHETIC-DEMO-ONLY".into();
+        let before = app.vault.as_ref().unwrap().entries.len();
+        click_fragment(&mut app, &ctx, "editor", "save-entry");
+        assert!(app.editing.is_none());
+        assert_eq!(app.selected_entry().unwrap().url, "https://example.test/");
+        assert_eq!(app.vault.as_ref().unwrap().entries.len(), before + 1);
+    }
+
+    #[test]
+    fn short_editor_preserves_email_and_optional_metadata() {
+        let ctx = egui::Context::default();
+        theme(&ctx, true);
+        let mut app = App::new(true, None);
+        app.capture = Some("unused-demo-capture".into());
+        let mut entry = app.selected_entry().unwrap();
+        entry.username.clear();
+        entry.email = "demo@example.test".into();
+        entry.fields = vec![("Recovery".into(), "synthetic-only".into())];
+        let original = entry.clone();
+        *app.vault
+            .as_mut()
+            .unwrap()
+            .entries
+            .iter_mut()
+            .find(|value| value.id == entry.id)
+            .unwrap() = entry.clone();
+        app.edit(entry);
+        assert!(app.editor_uses_email);
+        app.editing.as_mut().unwrap().email = "updated@example.test".into();
+        click_fragment(&mut app, &ctx, "editor", "save-entry");
+        assert!(app.editing.is_none());
+        let saved = app.selected_entry().unwrap();
+        assert_eq!(saved.email, "updated@example.test");
+        assert!(saved.username.is_empty());
+        assert_eq!(saved.url, original.url);
+        assert_eq!(saved.notes, original.notes);
+        assert_eq!(saved.fields, original.fields);
+        assert_eq!(saved.tags, original.tags);
+        assert_eq!(saved.favorite, original.favorite);
+        assert_eq!(saved.attachments.len(), original.attachments.len());
+        assert_eq!(saved.attachments[0].bytes, original.attachments[0].bytes);
+        assert_eq!(saved.history.len(), original.history.len() + 1);
+    }
+
+    #[test]
+    fn short_editor_keeps_invalid_draft_and_saves_secure_notes() {
+        let ctx = egui::Context::default();
+        theme(&ctx, true);
+        let mut app = App::new(true, None);
+        app.capture = Some("unused-demo-capture".into());
+        app.add_password();
+        app.editing.as_mut().unwrap().service = "Synthetic note".into();
+        app.editing.as_mut().unwrap().kind = "Secure note".into();
+        app.editing.as_mut().unwrap().notes = "Synthetic note content".into();
+        app.expiry_input = "not-a-date".into();
+        let before = app.vault.as_ref().unwrap().entries.len();
+        click_fragment(&mut app, &ctx, "editor", "save-entry");
+        assert_eq!(app.vault.as_ref().unwrap().entries.len(), before);
+        assert_eq!(
+            app.editing.as_ref().unwrap().notes,
+            "Synthetic note content"
+        );
+        assert!(app.error.as_deref().unwrap().contains("Expiry"));
+        app.expiry_input.clear();
+        click_fragment(&mut app, &ctx, "editor", "save-entry");
+        assert!(app.editing.is_none());
+        assert_eq!(
+            app.selected_entry().unwrap().notes,
+            "Synthetic note content"
+        );
+    }
+
+    #[test]
+    fn browser_import_demo_reviews_before_commit() {
+        let ctx = egui::Context::default();
+        theme(&ctx, true);
+        let mut app = App::new(true, None);
+        app.capture = Some("unused-demo-capture".into());
+        let before = app.vault.as_ref().unwrap().entries.len();
+        click_fragment(&mut app, &ctx, "actions", "import-browser");
+        assert!(app.browser_import_open);
+        click_fragment(&mut app, &ctx, "dialogs", "browser-choose-csv");
+        assert!(!app.browser_import_open && app.browser_import_pending);
+        assert_eq!(app.pending_import.as_ref().unwrap().len(), 1);
+        assert_eq!(app.vault.as_ref().unwrap().entries.len(), before);
+        click_fragment(&mut app, &ctx, "dialogs", "dialog-confirm");
+        assert!(app.pending_import.is_none() && !app.browser_import_pending);
+        assert_eq!(app.vault.as_ref().unwrap().entries.len(), before + 1);
+        assert!(app.notice.contains("Delete the exported plaintext CSV"));
+        app.browser_import_open = true;
+        fragment_frame(
+            &mut app,
+            &ctx,
+            vec![egui::Event::Key {
+                key: egui::Key::Escape,
+                physical_key: None,
+                pressed: true,
+                repeat: false,
+                modifiers: egui::Modifiers::NONE,
+            }],
+            "dialogs",
+        );
+        assert!(!app.browser_import_open);
+    }
+
+    #[test]
+    fn demo_browser_setup_never_starts_a_real_connection() {
+        let mut app = App::new(true, None);
+        for browser in BrowserKind::ALL {
+            app.browser_kind = browser;
+            app.open_browser_password_manager();
+            assert!(app.notice.starts_with("Demo:"));
+            app.setup_browser_connection();
+            assert_eq!(
+                app.browser_setup_path.as_deref(),
+                Some(Path::new("Demo extension folder"))
+            );
+            app.vault.as_mut().unwrap().settings.browser_enabled = true;
+            app.browser_requests(&egui::Context::default());
+            assert!(app.browser.is_none() && app.browser_last_seen.is_none());
+            assert!(app.browser_status().starts_with("Demo:"));
+        }
     }
 }

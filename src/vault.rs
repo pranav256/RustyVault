@@ -474,17 +474,23 @@ pub fn read_csv(bytes: &[u8]) -> Result<Vec<VaultEntry>, VaultError> {
             .iter()
             .position(|h| names.iter().any(|n| h.eq_ignore_ascii_case(n)))
     };
-    let title = column(&["title", "name", "service"]);
-    if title.is_none() {
-        return Err(VaultError::InvalidData(
-            "CSV needs a title, name or service column".into(),
-        ));
-    }
     let user = column(&["username", "login_username", "user name"]);
-    let email = column(&["email"]);
     let password = column(&["password", "login_password"]);
     let url = column(&["url", "login_uri"]);
-    let notes = column(&["notes"]);
+    let title = column(&["title", "name", "service"]).or_else(|| {
+        if user.is_some() && password.is_some() {
+            url
+        } else {
+            None
+        }
+    });
+    if title.is_none() {
+        return Err(VaultError::InvalidData(
+            "CSV needs a title, name or service column, or browser URL, username and password columns".into(),
+        ));
+    }
+    let email = column(&["email"]);
+    let notes = column(&["notes", "note"]);
     let group = column(&["group", "folder", "category"]);
     let tags = column(&["tags"]);
     let kind = column(&["type", "kind"]);
