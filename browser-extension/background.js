@@ -106,8 +106,13 @@ export function readLogin(expectedOrigin) {
   const password = passwords.find(input => input.autocomplete === "new-password") || passwords.find(input => input.autocomplete === "current-password") || passwords[0];
   if (!password) return null;
   const form = password.form;
-  if (form && new URL(form.action || location.href, location.href).origin !== expectedOrigin) return null;
-  const fields = [...(form || document).querySelectorAll('input')].filter(visible);
+  // Named controls can shadow form.action; form.elements also excludes image submitters.
+  const action = form && Object.getOwnPropertyDescriptor(HTMLFormElement.prototype, "action").get.call(form);
+  if (form && (new URL(action || location.href, location.href).origin !== expectedOrigin ||
+      [...document.querySelectorAll('button[formaction], input[formaction]')].some(control =>
+        control.form === form && ["submit", "image"].includes(control.type) &&
+        new URL(control.formAction || action || location.href, location.href).origin !== expectedOrigin))) return null;
+  const fields = [...document.querySelectorAll('input')].filter(input => (!form || input.form === form) && visible(input));
   const username = fields.find(input => input.autocomplete === "username") || fields.find(input => input.type === "email") || fields.find(input => input.type === "text");
   return { username: username?.value || "", password: password.value };
 }
@@ -118,8 +123,12 @@ export function fillLogin(expectedOrigin, username, secret) {
   const password = [...document.querySelectorAll('input[type="password"]')].filter(visible).find(input => input.autocomplete !== "new-password");
   if (!password) return false;
   const form = password.form;
-  if (form && new URL(form.action || location.href, location.href).origin !== expectedOrigin) return false;
-  const fields = [...(form || document).querySelectorAll('input')].filter(visible);
+  const action = form && Object.getOwnPropertyDescriptor(HTMLFormElement.prototype, "action").get.call(form);
+  if (form && (new URL(action || location.href, location.href).origin !== expectedOrigin ||
+      [...document.querySelectorAll('button[formaction], input[formaction]')].some(control =>
+        control.form === form && ["submit", "image"].includes(control.type) &&
+        new URL(control.formAction || action || location.href, location.href).origin !== expectedOrigin))) return false;
+  const fields = [...document.querySelectorAll('input')].filter(input => (!form || input.form === form) && visible(input));
   const user = fields.find(input => input.autocomplete === "username") || fields.find(input => input.type === "email") || fields.find(input => input.type === "text");
   const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
   const fill = (input, value) => {

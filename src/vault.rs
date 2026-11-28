@@ -22,6 +22,7 @@ pub struct EntryRevision {
     pub password: String,
     pub url: String,
     pub notes: String,
+    // Keep legacy OTP data when loading and saving existing vaults.
     #[serde(default)]
     pub totp_secret: String,
     #[serde(default)]
@@ -59,6 +60,7 @@ pub struct VaultEntry {
     pub tags: Vec<String>,
     #[serde(default)]
     pub kind: String,
+    // Keep legacy OTP data when loading and saving existing vaults.
     #[serde(default)]
     pub totp_secret: String,
     #[serde(default)]
@@ -143,9 +145,6 @@ impl VaultEntry {
                 "Attachments must be 5 MB or smaller".into(),
             ));
         }
-        if !self.totp_secret.is_empty() {
-            parse_totp(&self.totp_secret).map_err(VaultError::InvalidData)?;
-        }
         if !self.url.is_empty()
             && !self.url.starts_with("https://")
             && !self.url.starts_with("http://")
@@ -171,27 +170,6 @@ impl Drop for VaultEntry {
         for attachment in &mut self.attachments {
             attachment.bytes.zeroize();
         }
-    }
-}
-
-pub fn parse_totp(value: &str) -> Result<totp_rs::TOTP, String> {
-    if value.starts_with("otpauth://") {
-        totp_rs::TOTP::from_url(value).map_err(|e| e.to_string())
-    } else {
-        let secret =
-            totp_rs::Secret::Encoded(value.split_whitespace().collect::<String>().to_uppercase())
-                .to_bytes()
-                .map_err(|e| e.to_string())?;
-        totp_rs::TOTP::new(
-            totp_rs::Algorithm::SHA1,
-            6,
-            1,
-            30,
-            secret,
-            None,
-            "RustyVault".into(),
-        )
-        .map_err(|e| e.to_string())
     }
 }
 
@@ -509,11 +487,8 @@ pub fn read_csv(bytes: &[u8]) -> Result<Vec<VaultEntry>, VaultError> {
     let notes = column(&["notes"]);
     let group = column(&["group", "folder", "category"]);
     let tags = column(&["tags"]);
-    let totp = column(&["totp", "login_totp", "totp_secret"]);
     let kind = column(&["type", "kind"]);
-    let known = [
-        title, user, email, password, url, notes, group, tags, totp, kind,
-    ];
+    let known = [title, user, email, password, url, notes, group, tags, kind];
     let mut entries = Vec::new();
     for row in reader.records() {
         let row = row?;
@@ -527,7 +502,6 @@ pub fn read_csv(bytes: &[u8]) -> Result<Vec<VaultEntry>, VaultError> {
         let mut entry = VaultEntry::new(get(title), get(user), get(email), get(password));
         entry.url = get(url).into();
         entry.notes = get(notes).into();
-        entry.totp_secret = get(totp).into();
         if !get(group).is_empty() {
             entry.category = get(group).into();
         }
@@ -547,9 +521,6 @@ pub fn read_csv(bytes: &[u8]) -> Result<Vec<VaultEntry>, VaultError> {
                 entry.fields.push((header.into(), row[i].into()));
             }
         }
-        if !entry.totp_secret.is_empty() {
-            parse_totp(&entry.totp_secret).map_err(VaultError::InvalidData)?;
-        }
         entries.push(entry);
         if entries.len() > 10_000 {
             return Err(VaultError::InvalidData(
@@ -563,7 +534,7 @@ pub fn read_csv(bytes: &[u8]) -> Result<Vec<VaultEntry>, VaultError> {
 pub fn write_csv(entries: &[VaultEntry]) -> Result<Vec<u8>, VaultError> {
     let mut writer = csv::Writer::from_writer(Vec::new());
     writer.write_record([
-        "title", "username", "email", "password", "url", "notes", "group", "tags", "totp", "type",
+        "title", "username", "email", "password", "url", "notes", "group", "tags", "type",
     ])?;
     for entry in entries.iter().filter(|e| e.deleted_at.is_none()) {
         writer.write_record([
@@ -575,7 +546,6 @@ pub fn write_csv(entries: &[VaultEntry]) -> Result<Vec<u8>, VaultError> {
             &entry.notes,
             &entry.category,
             &entry.tags.join(";"),
-            &entry.totp_secret,
             &entry.kind,
         ])?;
     }

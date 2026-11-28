@@ -77,7 +77,7 @@ pub fn generate_password(config: &GeneratorConfig) -> String {
     }
 
     if charset.is_empty() {
-        charset = LOWER.chars().collect();
+        charset.extend(filter_ambiguous(LOWER));
     }
 
     let pool: Vec<char> = charset.chars().collect();

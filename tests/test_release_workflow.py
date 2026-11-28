@@ -48,6 +48,15 @@ def bash(script, env):
 
 
 class ReleaseWorkflowTests(unittest.TestCase):
+    def test_release_stays_draft_until_every_platform_build_succeeds(self):
+        publish_job = WORKFLOW.split("\n  publish:\n", 1)[1]
+        self.assertEqual(scalar(publish_job, "needs"), "publish-release")
+        self.assertEqual(scalar(STEPS["Publish Release Assets"], "draft"), "true")
+        self.assertIn(
+            'gh release edit "$RELEASE_TAG" --draft=false --latest',
+            scalar(STEPS["Publish completed release"], "run"),
+        )
+
     def test_versioned_names_match_packaging_and_upload_for_every_platform(self):
         expected = {
             "windows-latest": ("x86_64-pc-windows-msvc", "rusty-vault.exe", "Windows-x86_64.zip"),

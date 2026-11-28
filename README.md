@@ -1,7 +1,7 @@
 # RustyVault
 
-A local desktop password manager written in Rust. Credentials, notes, TOTP secrets,
-attachments, settings and credential history are stored in an encrypted vault
+A local desktop password manager written in Rust. Credentials, notes, attachments,
+settings and credential history are stored in an encrypted vault
 using Argon2id and AES-256-GCM.
 
 ## Run it on Windows
@@ -30,12 +30,6 @@ in the encrypted vault until you request a fill. To preview the light demo, run
 
 The theme comparison bar has been removed. Raycast retains both light and dark
 appearances. The selected theme applies to the lock screen, forms and dialogs.
-
-The optional OTP field holds a website's authenticator setup secret. It generates
-the rotating code the website asks for after your password; it does not add MFA
-to RustyVault's own unlock. Storing both secrets together is convenient; a separate
-authenticator gives stronger separation if the vault is compromised. OTP is not
-phishing-resistant. Leave the field empty for sites that do not use these codes.
 
 A Git checkout and GitHub's **Source code** archives contain source, not an EXE.
 The executable above appears after a successful release build. Published archives
@@ -106,12 +100,11 @@ The application supports desktop windows of at least 900×650 logical pixels.
 - Search, favorites, persistent flat groups and tags, with a list/detail layout.
 - Login entries and secure notes, custom secret fields, expiry dates and encrypted
   attachments up to **5 MB each**. The encrypted vault is capped at **64 MB**.
-- TOTP from a Base32 secret or `otpauth://` URI, with a live code and countdown.
 - Random passwords with character rules and passphrases from the full 7,776-word
   EFF list. Local weak, reused and expired password checks.
 - Trash, restore and confirmed permanent deletion.
 - Up to **20 credential revisions** per entry. History includes title, username,
-  email, password, website, notes, TOTP and custom fields. Restoring preserves the
+  email, password, website, notes and custom fields. Restoring preserves the
   current credential values as another revision. Attachments, groups, tags,
   favorites, type and expiry are not versioned.
 - Idle lock, optional lock on window focus loss, and timed clipboard clearing.
@@ -141,15 +134,18 @@ require the old password. Previous backups can contain permanently deleted entri
 
 CSV import accepts common columns such as `title/name/service`,
 `username/login_username`, `password/login_password`, `url/login_uri`, `notes`,
-`group/folder/category`, `tags`, `totp/login_totp` and `type/kind`.
+`group/folder/category`, `tags` and `type/kind`.
 Tags use semicolons. Unknown columns are retained as custom fields. Imports are
 limited to 16 MB and 10,000 entries; preview them before merging. Legacy import
 retains its original comma-separated, character-offset behavior and is not CSV.
 
-**CSV exports are plaintext**, including passwords and TOTP secrets. They omit
-custom fields, attachments, history, favorites, expiry, settings and trash, so use
-an encrypted backup for a complete copy. Confirmation is required before export.
-Exports cannot replace the open vault, its automatic backup or lock file.
+**CSV exports are plaintext**, including passwords. Values are preserved exactly for
+migration, including values that a spreadsheet could interpret as formulas. Open
+them as text; do not open them directly in Excel or another spreadsheet. They omit custom fields,
+attachments, history, favorites, expiry, settings and trash, so use an encrypted
+backup for a complete copy. Confirmation is required before export. Exports cannot
+replace the open vault, its automatic backup or lock file. OTP data in older vaults
+is preserved encrypted but is no longer shown or exported.
 
 ## Checks and reference
 

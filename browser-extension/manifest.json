@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "RustyVault",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Save and fill website logins through your unlocked RustyVault desktop app.",
   "browser_specific_settings": {
     "gecko": {

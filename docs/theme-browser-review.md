@@ -116,9 +116,9 @@ were removed. Raycast retains light/dark appearances, shared text-input padding,
 and the existing security and browser behavior. Old catalog sources remain
 archived reference assets; the comparison screenshots above are historical.
 
-The OTP detail label now says Website verification code and explains its purpose
-on hover. Existing OTP secrets and generation are preserved. The feature is
-optional and does not change the master-password unlock flow.
+The OTP feature was subsequently removed from the current interface. Existing
+encrypted vault fields are retained for compatibility but are no longer shown or
+exported.
 
 Raycast-only checks passed: 22 Rust tests, formatting and whitespace checks,
 and a release build with warnings denied. Native captures cover dark/light at

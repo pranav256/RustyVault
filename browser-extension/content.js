@@ -7,9 +7,12 @@
   document.addEventListener("submit", event => {
     if (!event.isTrusted || location.protocol !== "https:" || !(event.target instanceof HTMLFormElement)) return;
     const form = event.target;
-    if (new URL(form.action || location.href, location.href).origin !== location.origin) return;
+    const action = event.submitter?.hasAttribute("formaction")
+      ? event.submitter.formAction
+      : Object.getOwnPropertyDescriptor(HTMLFormElement.prototype, "action").get.call(form);
+    if (new URL(action, location.href).origin !== location.origin) return;
     const visible = input => !input.disabled && input.getClientRects().length && getComputedStyle(input).visibility !== "hidden";
-    const fields = [...form.querySelectorAll("input")].filter(visible);
+    const fields = [...document.querySelectorAll("input")].filter(input => input.form === form && visible(input));
     const passwords = fields.filter(input => input.type === "password");
     const password = passwords.find(input => input.autocomplete === "new-password") || passwords.find(input => input.autocomplete === "current-password") || passwords[0];
     if (!password?.value || password.value.length > 16384) return;

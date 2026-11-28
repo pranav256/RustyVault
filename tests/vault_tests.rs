@@ -55,7 +55,6 @@ fn encrypted_roundtrip_history_and_backup() {
     v.save_to_file(&path, &key).unwrap();
     let original = std::fs::read(&path).unwrap();
     e.password = "updated-password".into();
-    e.totp_secret.clear();
     e.fields[0].1 = "new-recovery-code".into();
     v.update_entry(e.clone());
     v.entries[0].deleted_at = Some(chrono::Utc::now());
@@ -66,6 +65,10 @@ fn encrypted_roundtrip_history_and_backup() {
     );
     let (loaded, _) = Vault::load_from_file(&path, "long test master passphrase").unwrap();
     assert_eq!(loaded.entries[0].history[0].password, "original-password");
+    assert_eq!(
+        loaded.entries[0].totp_secret,
+        "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"
+    );
     assert_eq!(
         loaded.entries[0].history[0].totp_secret,
         "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"
@@ -142,18 +145,67 @@ fn csv_quoted_values_and_unknown_columns_are_preserved() {
     assert_eq!(entries[0].fields[0].1, "custom-value");
     let again = read_csv(&write_csv(&entries).unwrap()).unwrap();
     assert_eq!(again[0].password, entries[0].password);
+    assert_eq!(
+        String::from_utf8(write_csv(&entries).unwrap())
+            .unwrap()
+            .lines()
+            .next(),
+        Some("title,username,email,password,url,notes,group,tags,type")
+    );
+    let older = read_csv(b"title,totp\nExample,legacy-secret\n").unwrap();
+    assert_eq!(older[0].fields[0], ("totp".into(), "legacy-secret".into()));
     assert!(read_csv(b"username,password\nalex,secret\n").is_err());
     assert!(read_csv(b"title,username,password\n,alex,secret\n").is_err());
 }
 
 #[test]
-fn totp_rfc_vector_and_invalid_secret() {
-    let otp = rusty_vault::vault::parse_totp(
-        "otpauth://totp/Test?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&digits=8&period=30",
-    )
-    .unwrap();
-    assert_eq!(otp.generate(59), "94287082");
-    assert!(rusty_vault::vault::parse_totp("invalid!!!").is_err());
+fn csv_export_preserves_formula_leading_values() {
+    use rusty_vault::vault::{read_csv, write_csv};
+    let mut entry = VaultEntry::new("=HYPERLINK(\"https://bad.test\")", "+SUM(1,1)", "", "-1+1");
+    entry.notes = " @SUM(1,1)".into();
+    entry.url = "https://example.com".into();
+    let exported = write_csv(&[entry]).unwrap();
+    let roundtrip = read_csv(&exported).unwrap();
+    assert_eq!(roundtrip[0].service, "=HYPERLINK(\"https://bad.test\")");
+    assert_eq!(roundtrip[0].username, "+SUM(1,1)");
+    assert_eq!(roundtrip[0].password, "-1+1");
+    assert_eq!(roundtrip[0].notes, " @SUM(1,1)");
+    assert_eq!(roundtrip[0].url, "https://example.com");
+}
+
+#[test]
+fn csv_export_preserves_formula_triggers_after_whitespace() {
+    use rusty_vault::vault::{read_csv, write_csv};
+    let whitespace = ["", " ", "\t", "\r", "\n", "\u{00a0}", "\u{2003}"];
+    let triggers = ["=", "+", "-", "@"];
+    let mut entries = Vec::new();
+    for space in whitespace {
+        for trigger in triggers {
+            entries.push(VaultEntry::new(
+                format!("{space}{trigger}1+1"),
+                "user",
+                "",
+                "secret",
+            ));
+        }
+    }
+    let exported = write_csv(&entries).unwrap();
+    let roundtrip = read_csv(&exported).unwrap();
+    for (original, imported) in entries.iter().zip(roundtrip.iter()) {
+        assert_eq!(original.service, imported.service);
+    }
+}
+
+#[test]
+fn csv_export_preserves_sign_prefixed_credentials() {
+    use rusty_vault::vault::{read_csv, write_csv};
+    for password in ["-Winter2025", "+secret", "@secret", "=literal", "'original"] {
+        let entry = VaultEntry::new("Example", "+14155550123", "@handle", password);
+        let imported = read_csv(&write_csv(&[entry]).unwrap()).unwrap();
+        assert_eq!(imported[0].username, "+14155550123");
+        assert_eq!(imported[0].email, "@handle");
+        assert_eq!(imported[0].password, password);
+    }
 }
 
 #[test]

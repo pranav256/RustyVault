@@ -347,7 +347,6 @@ impl App {
                 e.notes =
                     "Personal account. Recovery codes are stored in the attached file.".into();
                 if title == "GitHub" {
-                    e.totp_secret = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ".into();
                     e.attachments.push(Attachment {
                         name: "recovery-codes.txt".into(),
                         bytes: b"SYNTHETIC-DEMO-ONLY".to_vec(),
@@ -1181,16 +1180,6 @@ impl App {
                                     ui.close_menu();
                                 }
                             }
-                            if !entry.totp_secret.is_empty()
-                                && ui.button("One-time password").clicked()
-                            {
-                                if let Ok(totp) = vault::parse_totp(&entry.totp_secret) {
-                                    if let Ok(code) = totp.generate_current() {
-                                        self.copy(&code);
-                                    }
-                                }
-                                ui.close_menu();
-                            }
                         });
                         ui.menu_button("View", |ui| {
                             if ui
@@ -1296,64 +1285,49 @@ impl App {
         });
         ui.add_space(12.0);
         egui::ScrollArea::vertical().show(ui, |ui| {
-            egui::Frame::none().fill(colors.surface).rounding(12.0).inner_margin(20.0).show(ui, |ui| {
-                ui.set_min_width(ui.available_width());
-                ui.spacing_mut().item_spacing.y = 4.0;
-            if !entry.username.is_empty() {
-                self.detail_field(ui, "Username", &entry.username, false);
-            }
-            if !entry.email.is_empty() {
-                self.detail_field(ui, "Email", &entry.email, false);
-            }
-            if !entry.password.is_empty() {
-                self.detail_field(
-                    ui,
-                    "Password",
-                    if self.reveal {
-                        &entry.password
-                    } else {
-                        "••••••••••••••••"
-                    },
-                    true,
-                );
-                ui.label(
-                    RichText::new(if self.weak.contains(&entry.id) {
-                        "Weak password · consider replacing it"
-                    } else {
-                        "Strong password"
-                    })
-                    .small()
-                    .color(if self.weak.contains(&entry.id) {
-                        colors.danger
-                    } else {
-                        colors.success
-                    }),
-                );
-                ui.add_space(8.0);
-            }
-            if !entry.totp_secret.is_empty() {
-                if let Ok(totp) = vault::parse_totp(&entry.totp_secret) {
-                    if let Ok(code) = totp.generate_current() {
-                        ui.label(RichText::new("Website verification code").small().color(colors.muted))
-                            .on_hover_text("For this website’s two-step sign-in. RustyVault itself does not require this code.");
-                        ui.horizontal(|ui| {
-                            ui.label(RichText::new(format!("{} {}", &code[..code.len() / 2], &code[code.len() / 2..])).monospace().size(24.0));
-                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                if ui.button("Copy code").clicked() { self.copy(&code); }
-                            });
-                        });
-                        let remaining = totp.ttl().unwrap_or(0);
-                        ui.add(egui::ProgressBar::new(remaining as f32 / totp.step as f32)
-                            .desired_width(ui.available_width()).desired_height(3.0));
-                        ui.label(RichText::new(format!("Refreshes in {remaining}s")).small().color(colors.muted));
-                        ui.add_space(16.0);
+            egui::Frame::none()
+                .fill(colors.surface)
+                .rounding(12.0)
+                .inner_margin(20.0)
+                .show(ui, |ui| {
+                    ui.set_min_width(ui.available_width());
+                    ui.spacing_mut().item_spacing.y = 4.0;
+                    if !entry.username.is_empty() {
+                        self.detail_field(ui, "Username", &entry.username, false);
                     }
-                }
-            }
-            if !entry.url.is_empty() {
-                self.detail_field(ui, "Website", &entry.url, false);
-            }
-            });
+                    if !entry.email.is_empty() {
+                        self.detail_field(ui, "Email", &entry.email, false);
+                    }
+                    if !entry.password.is_empty() {
+                        self.detail_field(
+                            ui,
+                            "Password",
+                            if self.reveal {
+                                &entry.password
+                            } else {
+                                "••••••••••••••••"
+                            },
+                            true,
+                        );
+                        ui.label(
+                            RichText::new(if self.weak.contains(&entry.id) {
+                                "Weak password · consider replacing it"
+                            } else {
+                                "Strong password"
+                            })
+                            .small()
+                            .color(if self.weak.contains(&entry.id) {
+                                colors.danger
+                            } else {
+                                colors.success
+                            }),
+                        );
+                        ui.add_space(8.0);
+                    }
+                    if !entry.url.is_empty() {
+                        self.detail_field(ui, "Website", &entry.url, false);
+                    }
+                });
             ui.add_space(20.0);
             if !entry.tags.is_empty() {
                 ui.label(RichText::new("Tags").color(colors.muted));
@@ -1435,15 +1409,7 @@ impl App {
                             if ui.button("Copy previous password").clicked() {
                                 self.copy(&revision.password);
                             }
-                            ui.label(format!(
-                                "{} custom fields · {}",
-                                revision.fields.len(),
-                                if revision.totp_secret.is_empty() {
-                                    "No one-time password"
-                                } else {
-                                    "One-time password configured"
-                                }
-                            ));
+                            ui.label(format!("{} custom fields", revision.fields.len()));
                             if ui.button("Restore this version…").clicked() {
                                 self.confirmation =
                                     Some(Confirm::RestoreHistory(entry.id.clone(), i));
@@ -1567,17 +1533,6 @@ impl App {
                     &mut self.tags_input,
                     false,
                 );
-                form_field(
-                    ui,
-                    "OTP authenticator secret · base32 or otpauth URL",
-                    &mut entry.totp_secret,
-                    true,
-                );
-                ui.label(RichText::new("Optional website authenticator secret, not a six-digit code. This does not change how you unlock RustyVault.").small().color(colors.muted));
-                egui::CollapsingHeader::new("Why use one-time passwords?").show(ui, |ui| {
-                    ui.label("OTP adds a rotating code after your password. It helps when only the password is stolen.");
-                    ui.label("Keeping both secrets here is convenient. A separate authenticator protects better against vault compromise. Codes can still be phished.");
-                });
                 form_field(
                     ui,
                     "Expiry · YYYY-MM-DD (optional)",
@@ -2002,7 +1957,7 @@ form_field(ui,"Current master password",&mut self.master,true);form_field(ui,"Ne
             let mut confirm = false;
             let mut cancel =
                 ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape));
-            let (title,body,button)=match &action{Confirm::BrowserSave(_)=>("Save browser login?","Check the website and account below before saving. An existing login for this website and username will be updated, keeping its history.","Save login"),Confirm::Trash(_)=>("Move entry to trash?","You can restore this entry from Trash.","Move to trash"),Confirm::Purge(_)=>("Delete this entry forever?","The entry and its history will be removed. This cannot be undone.","Delete forever"),Confirm::Export=>("Export unencrypted passwords?","This file contains passwords and one-time-password secrets in plain text. Anyone can read it. Attachments, custom fields and history are excluded.","Export file"),Confirm::Discard=>("Discard your changes?","Unsaved entry changes will be lost.","Discard changes"),Confirm::RestoreHistory(..)=>("Restore this version?","Current credential values will be saved in history before restoring.","Restore version")};
+            let (title,body,button)=match &action{Confirm::BrowserSave(_)=>("Save browser login?","Check the website and account below before saving. An existing login for this website and username will be updated, keeping its history.","Save login"),Confirm::Trash(_)=>("Move entry to trash?","You can restore this entry from Trash.","Move to trash"),Confirm::Purge(_)=>("Delete this entry forever?","The entry and its history will be removed. This cannot be undone.","Delete forever"),Confirm::Export=>("Export unencrypted passwords?","This file contains passwords in plain text. Anyone can read it. Values are preserved exactly and may be spreadsheet formulas. Open as text, not in a spreadsheet. Attachments, custom fields and history are excluded.","Export file"),Confirm::Discard=>("Discard your changes?","Unsaved entry changes will be lost.","Discard changes"),Confirm::RestoreHistory(..)=>("Restore this version?","Current credential values will be saved in history before restoring.","Restore version")};
             egui::Window::new(title)
                 .order(egui::Order::Foreground)
                 .collapsible(false)
